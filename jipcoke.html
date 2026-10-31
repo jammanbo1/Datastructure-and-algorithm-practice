@@ -1,0 +1,1600 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<meta name="color-scheme" content="light">
+<title>집콕체크</title>
+<style>
+  :root{
+    /* 메인: 딥 블루 · 네이비 */
+    --primary:#1d4fc4; --primary-press:#173f9c; --primary-soft:#edf2fd; --navy:#0b2447;
+    /* 포인트: 로즈 핑크 (강조에만 조금) */
+    --accent:#e24c7f; --accent-ink:#c2335f; --accent-soft:#fdeef3;
+    /* 중립: 화이트 · 라이트 그레이 · 흑백 (글자는 진하게) */
+    --bg:#f4f5f8; --card:#fff; --label:#111318; --label2:#464a53; --label3:#767b85;
+    --sep:#e9eaee; --fill:#e6e8ee; --press:#f1f2f6;
+    /* 판단 색 */
+    --ok:#1e7d45; --ok-bg:#e7f5ec; --unsure:#b35c00; --unsure-bg:#fdf1e3; --bad:#c62f2b; --bad-bg:#fcebea;
+    --radius:18px; --pad:18px;
+    --shadow:0 1px 2px rgba(11,36,71,.04),0 6px 20px rgba(11,36,71,.05);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#eceef3;color:var(--label);font-family:"Pretendard","Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif;font-size:17px;line-height:1.6;word-break:keep-all;overflow-wrap:break-word;-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
+  button{font:inherit;color:inherit;letter-spacing:inherit}
+
+  /* ---------- 앱 화면 (컴퓨터에서는 가운데 둥근 카드) ---------- */
+  .stage{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px 16px 16px}
+  .device{position:relative;height:min(932px,calc(100dvh - 84px));width:min(430px,calc((100dvh - 84px) / 2.1),100%);min-height:600px;border-radius:28px;box-shadow:0 2px 6px rgba(11,36,71,.06),0 24px 60px -24px rgba(11,36,71,.28)}
+  .screen{position:relative;height:100%;background:var(--bg);border-radius:28px;overflow:hidden;display:flex;flex-direction:column}
+  .views{padding-top:6px}
+
+  /* ---------- 화면 전환 ---------- */
+  .views{position:relative;flex:1;min-height:0;overflow:hidden}
+  .view{position:absolute;inset:0;display:flex;flex-direction:column;background:var(--bg);transform:translateX(100%);visibility:hidden;transition:transform .35s cubic-bezier(.25,.8,.25,1),visibility 0s .35s}
+  .view.on{transform:none;visibility:visible;transition:transform .35s cubic-bezier(.25,.8,.25,1)}
+  .view.past{transform:translateX(-30%)}
+  .view:not(.on){pointer-events:none} /* 뒤에 있는 화면은 눌리지 않게 */
+
+  /* ---------- 상단 ---------- */
+  .nav{flex:none;height:48px;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:0 10px;background:rgba(244,245,248,.9);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);z-index:2}
+  .nav .title{font-size:17px;font-weight:700;text-align:center}
+  .nav .step-ind{justify-self:end;font-size:14px;font-weight:600;color:var(--label3);padding:3px 10px;background:var(--card);border-radius:999px;font-variant-numeric:tabular-nums}
+  .back{justify-self:start;display:flex;align-items:center;gap:4px;height:40px;padding:0 10px 0 4px;border:0;background:none;color:var(--primary);font-size:17px;font-weight:600;cursor:pointer;border-radius:10px}
+  .back:active{opacity:.45}
+  .back svg{display:block}
+
+  .scroll{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#c4c8d0 transparent;scrollbar-gutter:stable;padding:0 var(--pad) 124px}
+  /* 창 내리는 바 (스크롤 막대) */
+  .scroll::-webkit-scrollbar{width:10px}
+  .scroll::-webkit-scrollbar-track{background:transparent;margin:6px 0 96px}
+  .scroll::-webkit-scrollbar-thumb{background:#c4c8d0;border-radius:10px;border:3px solid var(--bg);min-height:48px}
+  .scroll::-webkit-scrollbar-thumb:hover{background:#9ca1ab}
+
+  /* ---------- 큰 제목 ---------- */
+  .large{padding:6px 2px 4px}
+  .eyebrow{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--accent-ink);letter-spacing:.02em;margin-bottom:6px}
+  .eyebrow::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--accent)}
+  .large h1{font-size:32px;font-weight:800;letter-spacing:-.03em;line-height:1.2;color:var(--navy)}
+  .large .legal-top{margin-top:8px;font-size:14px;font-weight:600;color:var(--label2)}
+  .large .legal-top::before{content:"ⓘ ";color:var(--navy)}
+  .large p{font-size:16px;color:var(--label2);margin-top:8px;line-height:1.6}
+
+  /* 소개 세 줄 */
+  .intro-row{padding:14px 18px}
+  .intro-row + .intro-row{border-top:1px solid var(--sep)}
+  .intro-row b{display:block;font-size:14px;font-weight:800;color:var(--navy);margin-bottom:4px}
+  .intro-row p{font-size:15px;color:var(--label2);line-height:1.6}
+
+  /* ---------- 묶음 ---------- */
+  .grp{margin-top:26px}
+  .card-t{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:0 4px 10px;font-size:16px;font-weight:800;color:var(--label)}
+  .card-t small{font-size:13px;font-weight:600;color:var(--label3);background:var(--card);border-radius:999px;padding:2px 10px;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .card{background:var(--card);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+  .card.pad{padding:18px}
+  .foot{font-size:14px;color:var(--label2);padding:10px 4px 0;line-height:1.5}
+
+  /* 진행 요약 */
+  .meter{padding:18px}
+  .meter .top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}
+  .meter .top span{font-size:16px;font-weight:600}
+  .meter .top b{font-size:20px;font-weight:800;color:var(--navy);font-variant-numeric:tabular-nums}
+  .meter .track{height:8px;background:var(--fill);border-radius:8px;overflow:hidden}
+  .meter .fill{width:0;height:100%;background:linear-gradient(90deg,var(--primary),var(--accent));border-radius:8px;transition:width .5s}
+  .meter .na-note{margin-top:10px;font-size:14px;font-weight:600;color:var(--label2)}
+  .meter .na-note[hidden]{display:none}
+
+  /* 질문 목록 */
+  .item{position:relative;display:flex;gap:14px;align-items:flex-start;padding:16px 40px 16px 18px;cursor:pointer;background:var(--card);transition:background .12s}
+  .item + .item{border-top:1px solid var(--sep)}
+  .item:active,.item:focus-visible{background:var(--press);outline:none}
+  .item::after{content:"";position:absolute;right:20px;top:50%;width:8px;height:8px;border-right:2px solid #b9bcc4;border-top:2px solid #b9bcc4;transform:translateY(-50%) rotate(45deg)}
+  .ck{flex:none;width:26px;height:26px;margin-top:1px;border-radius:50%;border:2px solid #c9ccd3;display:grid;place-items:center}
+  .item.done .ck{border:0;background:var(--label3)}
+  .item.done.lv-ok .ck{background:var(--ok)}
+  .item.done.lv-unsure .ck{background:var(--unsure)}
+  .item.done.lv-bad .ck{background:var(--bad)}
+  .item.cur{background:linear-gradient(90deg,var(--accent-soft),#fff 70%)}
+  .item.cur::before{content:"";position:absolute;left:0;top:12px;bottom:12px;width:4px;border-radius:0 4px 4px 0;background:var(--accent)}
+  .item.cur .ck{border-color:var(--accent)}
+  .item .txt{flex:1;min-width:0}
+  .qt{font-size:17px;font-weight:600;line-height:1.45;color:var(--label)}
+  .item.done .qt{color:var(--label2)}
+  .tg{font-size:14px;font-weight:700;color:var(--label2);margin-top:5px;display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+  .now,.lv{display:inline-block;font-size:12px;font-weight:800;border-radius:999px;padding:2px 9px;line-height:1.5}
+  .now{background:var(--accent);color:#fff}
+  .lv.ok{background:var(--ok-bg);color:var(--ok)}
+  .lv.unsure{background:var(--unsure-bg);color:var(--unsure)}
+  .lv.bad{background:var(--bad-bg);color:var(--bad)}
+  .lv.skip{background:var(--fill);color:var(--label2)}
+  .item.na .qt{color:var(--label3);font-weight:500}
+  .item.na .ck{border-style:dashed;border-color:#c9ccd3}
+
+  .reset{display:block;width:100%;text-align:center;padding:15px 18px;border:0;background:var(--card);color:var(--bad);font-size:16px;font-weight:600;cursor:pointer}
+  .reset:active{background:var(--press)}
+  .note{font-size:13px;color:var(--label3);text-align:center;margin:26px 12px 0;line-height:1.65}
+  .foot-m{display:none;margin-top:14px;margin-bottom:28px}
+
+  /* ---------- 답변 화면 ---------- */
+  .qnum{display:inline-block;font-size:13px;font-weight:700;color:var(--accent-ink);background:var(--accent-soft);border-radius:999px;padding:3px 10px;margin-bottom:10px}
+  .qbig{font-size:21px;font-weight:700;line-height:1.45;letter-spacing:-.02em;color:var(--navy)}
+  .why{margin-top:14px;padding:14px 16px;background:var(--bg);border-radius:14px;font-size:15.5px;color:var(--label2);line-height:1.65}
+  .why b{display:block;font-size:14px;font-weight:700;color:var(--label);margin-bottom:4px}
+  .field{margin-top:26px}
+  .lbl{display:block;font-size:16px;font-weight:700;color:var(--label);padding:0 4px 10px}
+  .opt-tag{font-size:12px;font-weight:600;color:var(--label3);background:var(--card);border-radius:999px;padding:1px 8px;margin-left:6px;vertical-align:1px}
+  .fh{font-size:14px;color:var(--label2);padding:8px 4px 0;line-height:1.55}
+  .opts{background:var(--card);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+  .opt{position:relative;display:block;width:100%;text-align:left;border:0;background:var(--card);padding:15px 50px 15px 18px;font-size:16.5px;font-weight:600;line-height:1.45;color:var(--label);cursor:pointer;transition:background .12s,color .12s}
+  .opt + .opt{border-top:1px solid var(--sep)}
+  .opt:active{background:var(--press)}
+  .opt.on{background:var(--primary-soft)}
+  .opt.on::after{content:"";position:absolute;right:18px;top:50%;width:22px;height:22px;border-radius:50%;background:var(--primary) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2l2.3 2.3 4.7-5' stroke='white' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/12px no-repeat;transform:translateY(-50%)}
+  .money{display:flex;align-items:center;gap:8px;background:var(--card);border-radius:var(--radius);padding:0 18px;min-height:56px;box-shadow:var(--shadow);transition:box-shadow .15s}
+  .money input{flex:1;min-width:0;height:56px;border:0;outline:0;background:transparent;font:inherit;font-size:19px;text-align:right;color:var(--label);font-variant-numeric:tabular-nums}
+  .money input::placeholder{color:#c2c5cc;font-weight:400}
+  .money span{font-size:17px;color:var(--label2)}
+  .money:focus-within{box-shadow:0 0 0 2px var(--primary),var(--shadow)}
+  .money-read{font-size:14px;font-weight:600;color:var(--primary);padding:8px 4px 0}
+  .money-read:empty{display:none}
+  .answer{position:relative;background:var(--card);border-radius:var(--radius);padding:14px 18px 28px;box-shadow:var(--shadow)}
+  .answer:focus-within{box-shadow:0 0 0 2px var(--primary),var(--shadow)}
+  .answer textarea{display:block;width:100%;min-height:88px;border:0;outline:0;resize:none;background:transparent;font:inherit;font-size:16.5px;line-height:1.6;color:var(--label)}
+  .answer textarea::placeholder{color:#a9adb5}
+  .answer .cnt{position:absolute;right:16px;bottom:10px;font-size:12px;color:var(--label3)}
+  .chips{display:flex;gap:4px;background:var(--fill);border-radius:12px;padding:4px}
+  .chip{flex:1;border:0;background:transparent;border-radius:9px;padding:10px 6px;font-size:15px;font-weight:600;color:var(--label2);cursor:pointer;white-space:nowrap;transition:background .15s,color .15s,box-shadow .15s}
+  .chip.on{background:var(--card);color:var(--navy);box-shadow:0 1px 4px rgba(11,36,71,.12)}
+
+  /* ---------- 판단 결과 ---------- */
+  .verdict{text-align:center;padding:28px 22px 26px}
+  .vi{width:64px;height:64px;margin:0 auto 14px;border-radius:50%;display:grid;place-items:center;font-size:32px;font-weight:800;color:#fff;background:var(--unsure);box-shadow:0 0 0 8px var(--unsure-bg)}
+  .vi::before{content:"!"}
+  .verdict[data-lv="ok"] .vi{background:var(--ok);box-shadow:0 0 0 8px var(--ok-bg)}
+  .verdict[data-lv="ok"] .vi::before{content:"✓";font-size:30px}
+  .verdict[data-lv="bad"] .vi{background:var(--bad);box-shadow:0 0 0 8px var(--bad-bg)}
+  .badge{display:inline-block;font-size:14px;font-weight:800;border-radius:999px;padding:3px 12px;color:var(--unsure);background:var(--unsure-bg)}
+  .badge.ok{color:var(--ok);background:var(--ok-bg)}
+  .badge.bad{color:var(--bad);background:var(--bad-bg)}
+  .verdict h3{font-size:23px;font-weight:800;letter-spacing:-.025em;margin-top:10px;line-height:1.35;color:var(--navy)}
+  .reasons{list-style:none}
+  .reasons li{position:relative;padding:15px 18px 15px 40px;font-size:16px;line-height:1.65;color:var(--label)}
+  .reasons li + li{border-top:1px solid var(--sep)}
+  .reasons li::before{content:"";position:absolute;left:18px;top:23px;width:9px;height:9px;border-radius:50%;background:var(--label3)}
+  .reasons li.ok::before{background:var(--ok)}
+  .reasons li.unsure::before{background:var(--unsure)}
+  .reasons li.bad::before{background:var(--bad)}
+  .reasons li{white-space:pre-line}
+  .reasons li.info{color:var(--label2);font-size:15px}
+  .risk{padding:16px 18px;font-size:16px;line-height:1.65;border-left:4px solid var(--unsure)}
+  .risk .tip{margin-top:12px;padding-top:12px;border-top:1px solid var(--sep);color:var(--label2);font-size:15px}
+  .mine{padding:16px 18px;font-size:16px;line-height:1.7;color:var(--label);white-space:pre-wrap}
+  #r-meta{font-size:15px}
+  .act{display:flex;gap:12px;align-items:flex-start;padding:15px 18px;font-size:16px;font-weight:600;line-height:1.55}
+  .act + .act{border-top:1px solid var(--sep)}
+  .num{flex:none;width:26px;height:26px;border-radius:50%;background:var(--navy);color:#fff;font-size:13px;font-weight:800;display:grid;place-items:center}
+  .law{padding:15px 18px}
+  .law + .law{border-top:1px solid var(--sep)}
+  .law b{display:block;font-size:16px;font-weight:700;color:var(--navy);margin-bottom:4px}
+  .law span{font-size:15px;color:var(--label2);line-height:1.6}
+
+  .ai-text{font-size:16px;line-height:1.65}
+
+  /* ---------- 하단 버튼 ---------- */
+  .cta{position:absolute;left:0;right:0;bottom:0;padding:10px var(--pad) 30px;background:linear-gradient(to bottom,rgba(244,245,248,0),var(--bg) 18%);display:grid;gap:4px;pointer-events:none}
+  .cta .btn{pointer-events:auto} /* 버튼만 눌리고, 버튼 위 투명한 띠는 아래 내용이 눌리게 */
+  .btn{width:100%;height:56px;border:0;border-radius:16px;font-size:17px;font-weight:700;background:var(--primary);color:#fff;cursor:pointer;box-shadow:0 6px 16px -6px rgba(29,79,196,.55);transition:background .15s,transform .1s}
+  .btn:active{background:var(--primary-press);transform:scale(.985)}
+  .btn:disabled{background:#c9ccd4;box-shadow:none;cursor:not-allowed;transform:none}
+  .btn.plain{background:transparent;color:var(--primary);height:46px;font-weight:600;box-shadow:none}
+  .btn.plain:active{background:var(--primary-soft)}
+  #p2 .scroll{padding-bottom:168px}
+
+  .toast{position:absolute;left:50%;bottom:116px;z-index:6;width:max-content;max-width:calc(100% - 48px);transform:translate(-50%,8px);background:rgba(11,36,71,.92);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);color:#fff;font-size:14.5px;font-weight:600;border-radius:16px;padding:11px 18px;text-align:center;opacity:0;transition:opacity .25s,transform .25s;pointer-events:none}
+  /* 시작 화면: 저장된 기록 안내 */
+  .saved{padding:16px 18px;text-align:center}
+  .saved[hidden]{display:none}
+  .saved-t{font-size:17px;font-weight:800;color:var(--navy)}
+  .saved-d{font-size:16px;color:var(--label2);margin-top:4px}
+  .saved-d b{color:var(--navy)}
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+
+  footer{text-align:center;font-size:13px;color:var(--label2);padding:20px 0 0}
+  footer small{display:block;font-size:12px;color:var(--label3);margin-top:2px}
+
+  :focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+
+  /* 휴대폰에서는 화면 전체를 앱으로 */
+  @media (max-width:520px){
+    body{background:var(--bg)}
+    .stage{display:block;padding:0}
+    .device{width:100%;height:100vh;height:100dvh;min-height:0;border-radius:0;box-shadow:none}
+    .screen{border-radius:0}
+    .views{padding-top:0}
+    footer{display:none}
+    .foot-m{display:block} /* 휴대폰은 시작 화면 맨 아래에 맨 아래 문구를 보여 줘요 */
+    .nav{padding-top:env(safe-area-inset-top);height:calc(48px + env(safe-area-inset-top))}
+    .cta{padding-bottom:calc(14px + env(safe-area-inset-bottom))}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .view,.view.on{transition:none}
+  }
+
+  /* ---------- 단계 고르기 ---------- */
+  .stage-card{display:flex;gap:14px;align-items:center;width:100%;text-align:left;border:0;padding:16px 40px 16px 16px;cursor:pointer;position:relative;background:var(--card);transition:background .12s}
+  .stage-card + .stage-card{border-top:1px solid var(--sep)}
+  .stage-card:active{background:var(--press)}
+  .stage-card::after{content:"";position:absolute;right:20px;top:50%;width:8px;height:8px;border-right:2px solid var(--label3);border-top:2px solid var(--label3);transform:translateY(-50%) rotate(45deg)}
+  .stage-card .si{flex:none;width:46px;height:46px;border-radius:14px;display:grid;place-items:center;font-size:17px;font-weight:800;color:var(--primary);background:var(--primary-soft)}
+  .stage-card.all .si{background:var(--ok);color:#fff}
+  .stage-card .st-t{display:flex;align-items:center;flex-wrap:wrap;gap:6px;font-size:17px;font-weight:800;color:var(--navy)}
+  .stage-card .st-sub{font-size:12.5px;font-weight:700;color:var(--accent-ink)}
+  .stage-card .st-d{display:block;font-size:14.5px;color:var(--label2);line-height:1.5;margin-top:2px}
+  .stage-card .st-p{display:block;font-size:13px;font-weight:700;color:var(--label3);margin-top:6px;font-variant-numeric:tabular-nums}
+  .stage-card.last{box-shadow:inset 4px 0 0 var(--accent)}
+  .seg{display:flex;gap:4px;background:var(--fill);border-radius:12px;padding:4px;margin-top:14px}
+  .seg button{flex:1;border:0;background:transparent;border-radius:9px;padding:9px 4px;font-size:15px;font-weight:700;color:var(--label2);cursor:pointer}
+  .seg button.on{background:var(--card);color:var(--navy);box-shadow:0 1px 4px rgba(11,36,71,.12)}
+  .stage-lead{font-size:15px;color:var(--label2);padding:10px 4px 0}
+
+  /* ---------- 빠른 입력·도움 버튼 ---------- */
+  .helpbtn{justify-self:end;height:32px;padding:0 12px;border:0;border-radius:999px;background:var(--accent-soft);color:var(--accent-ink);font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap}
+  .helpbtn:active{opacity:.6}
+  .quick{display:flex;gap:14px;align-items:center;width:100%;text-align:left;border:0;padding:16px 18px;cursor:pointer}
+  .quick + .quick{margin-top:10px}
+  .quick:active{background:var(--press)}
+  .quick .qi{flex:none;width:44px;height:44px;border-radius:14px;display:grid;place-items:center;font-size:21px;background:var(--primary-soft)}
+  .quick.help-entry .qi{background:var(--accent-soft)}
+  .quick b{display:block;font-size:16.5px;font-weight:800;color:var(--navy)}
+  .quick .qtx span{display:block;font-size:14.5px;color:var(--label2);line-height:1.5;margin-top:2px}
+
+  /* ---------- 접는 칸 ---------- */
+  details>summary{list-style:none;cursor:pointer}
+  details>summary::-webkit-details-marker{display:none}
+  summary.card-t{justify-content:flex-start}
+  summary.card-t::after{content:"";width:8px;height:8px;border-right:2px solid var(--label3);border-bottom:2px solid var(--label3);transform:rotate(45deg);margin:0 6px 4px auto}
+  details[open]>summary.card-t::after{transform:rotate(-135deg);margin-bottom:-2px}
+  details.why summary{font-size:14.5px;font-weight:700;color:var(--primary)}
+  details.why[open] summary{margin-bottom:4px}
+  details.why summary::after{content:" ＋"}
+  details.why[open] summary::after{content:" －"}
+
+  /* ---------- 바로 보는 판단 결과 ---------- */
+  .pending{padding:18px;text-align:center;color:var(--label3);font-size:15px;border:2px dashed var(--fill);background:transparent;box-shadow:none}
+  .verdict.live{text-align:left;padding:0}
+  .vrow{display:flex;gap:14px;align-items:center;padding:18px}
+  .vrow .vi{flex:none;width:44px;height:44px;margin:0;font-size:22px;box-shadow:0 0 0 5px var(--unsure-bg)}
+  .verdict.live[data-lv="ok"] .vi{box-shadow:0 0 0 5px var(--ok-bg)}
+  .verdict.live[data-lv="ok"] .vi::before{font-size:21px}
+  .verdict.live[data-lv="bad"] .vi{box-shadow:0 0 0 5px var(--bad-bg)}
+  .vrow h3{font-size:19px;margin-top:4px}
+  .verdict.live .reasons{border-top:1px solid var(--sep)}
+
+  /* ---------- 도움받을 곳 ---------- */
+  .help-lead{padding:14px 18px 2px;font-size:15px;font-weight:600;color:var(--label2)}
+  .hrow{display:flex;align-items:center;gap:12px;padding:14px 18px}
+  .hrow + .hrow{border-top:1px solid var(--sep)}
+  .ht{flex:1;min-width:0}
+  .ht b{display:block;font-size:16px;font-weight:800;color:var(--label)}
+  .ht span{display:block;font-size:14px;color:var(--label2);line-height:1.5;margin-top:2px}
+  .hb{flex:none;display:flex;flex-direction:column;gap:6px;align-items:stretch}
+  .hbtn{display:inline-flex;align-items:center;justify-content:center;height:34px;padding:0 12px;border-radius:999px;background:var(--primary-soft);color:var(--primary);font-size:14px;font-weight:700;text-decoration:none;white-space:nowrap}
+  .hbtn.call{background:var(--primary);color:#fff}
+  .hbtn.call::before{content:"☎ "}
+  .urgent{background:var(--bad-bg);border-radius:var(--radius);padding:16px 18px;color:var(--label);font-size:15px;line-height:1.6}
+  .urgent b{display:block;color:var(--bad);font-size:16px;font-weight:800;margin-bottom:4px}
+  .urgent .hbtns{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .urgent .hbtn.call{background:var(--bad)}
+  .sec-t{display:flex;align-items:baseline;gap:8px;font-size:15.5px;font-weight:800;margin:22px 4px 10px}
+  .sec-t small{font-size:13px;font-weight:600;color:var(--label3)}
+
+  /* ---------- 음성·메모 ---------- */
+  .memo-tools{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+  .mic,.ghost{height:40px;padding:0 14px;border-radius:999px;border:0;font-size:14.5px;font-weight:700;cursor:pointer}
+  .mic{background:var(--accent-soft);color:var(--accent-ink)}
+  .mic.rec{background:var(--bad);color:#fff;animation:pulse 1.2s infinite}
+  @keyframes pulse{50%{box-shadow:0 0 0 6px var(--bad-bg)}}
+  .no-sr .mic{display:none}
+  .ghost{background:var(--fill);color:var(--label)}
+  .lv.pre{background:var(--primary-soft);color:var(--primary)}
+
+  /* ---------- 아래에서 올라오는 창 ---------- */
+  .sheet{position:absolute;inset:0;z-index:8}
+  .sheet[hidden]{display:none}
+  .sheet-bg{position:absolute;inset:0;background:rgba(11,20,40,.4);animation:fade .2s}
+  .sheet-panel{position:absolute;left:0;right:0;bottom:0;max-height:90%;display:flex;flex-direction:column;background:var(--bg);border-radius:24px 24px 0 0;animation:up .28s cubic-bezier(.25,.8,.25,1)}
+  .sheet-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 18px 8px}
+  .sheet-head b{font-size:19px;font-weight:800;color:var(--navy)}
+  .x{flex:none;width:36px;height:36px;border:0;border-radius:50%;background:var(--fill);color:var(--label2);font-size:15px;cursor:pointer}
+  .sheet-body{overflow-y:auto;overscroll-behavior:contain;padding:4px 18px calc(24px + env(safe-area-inset-bottom))}
+  .sh-d{font-size:15px;color:var(--label2);line-height:1.6;margin-bottom:12px}
+  .sheet .btn{margin-top:14px}
+  .sh-empty{margin-top:16px;padding:16px 18px;background:var(--card);border-radius:var(--radius);font-size:15px;color:var(--label2)}
+  .sug{display:flex;gap:12px;align-items:flex-start;padding:14px 18px;cursor:pointer}
+  .sug + .sug{border-top:1px solid var(--sep)}
+  .sug input{margin-top:4px;width:20px;height:20px;accent-color:var(--primary);flex:none}
+  .sug .sw{display:block;font-size:13px;font-weight:700;color:var(--label3)}
+  .sug .sv{display:block;font-size:16px;font-weight:700;line-height:1.45}
+  .sug .was{display:block;font-size:13px;color:var(--unsure);font-weight:700;margin-top:2px}
+  .sug q{display:block;font-size:13.5px;color:var(--label2);margin-top:2px}
+  @keyframes up{from{transform:translateY(100%)}}
+  @keyframes fade{from{opacity:0}}
+  @media (prefers-reduced-motion:reduce){.sheet-bg,.sheet-panel{animation:none}.mic.rec{animation:none}}
+
+  /* ---------- 밝은·어두운 화면 공통 토큰 ---------- */
+  :root{--page:#eceef3; --nav-bg:rgba(244,245,248,.9); --fade:rgba(244,245,248,0); --on-primary:#fff;
+    --off-bg:#c9ccd4; --off-fg:#fff; --ring:#c9ccd3; --chev:#b9bcc4; --thumb:#c4c8d0; --ph:#a9adb5; --seg-shadow:0 1px 4px rgba(11,36,71,.12)}
+  body{background:var(--page)}
+  .nav{background:var(--nav-bg)}
+  .cta{background:linear-gradient(to bottom,var(--fade),var(--bg) 18%)}
+  .item.cur{background:linear-gradient(90deg,var(--accent-soft),var(--card) 70%)}
+  .item::after{border-color:var(--chev)}
+  .ck,.item.na .ck{border-color:var(--ring)}
+  .btn,.hbtn.call,.num,.vi,.now,.stage-card.all .si,.mic.rec,.urgent .hbtn.call,.toast{color:var(--on-primary)}
+  .toast{background:var(--navy)}
+  .btn:disabled{background:var(--off-bg);color:var(--off-fg)}
+  .btn.plain{color:var(--primary)}
+  .seg button.on,.chip.on{box-shadow:var(--seg-shadow)}
+  .scroll{scrollbar-color:var(--thumb) transparent}
+  .scroll::-webkit-scrollbar-thumb{background:var(--thumb)}
+  .money input::placeholder,.answer textarea::placeholder{color:var(--ph)}
+  @media (max-width:520px){ body{background:var(--bg)} }
+
+  /* ---------- 글씨 크기 정리 (작게, 한눈에) ---------- */
+  :root{--radius:16px; --pad:16px}
+  body{font-size:15px;line-height:1.55}
+  .nav .title{font-size:15px}
+  .back{font-size:15px}
+  .helpbtn{height:28px;font-size:12.5px;padding:0 10px}
+  .large{padding:4px 2px 0}
+  .eyebrow{font-size:12px;margin-bottom:2px}
+  .large h1{font-size:25px}
+  .large .legal-top{font-size:12.5px;margin-top:4px;color:var(--label3)}
+  .grp{margin-top:20px}
+  .card-t{font-size:13.5px;padding:0 4px 8px;color:var(--label2)}
+  .card-t small{font-size:11.5px}
+  .foot,.fh{font-size:12.5px}
+  .note{font-size:11.5px;margin-top:20px}
+  .intro-row{padding:12px 16px}
+  .intro-row b{font-size:12.5px}
+  .intro-row p{font-size:13.5px}
+
+  .stage-card{padding:13px 36px 13px 14px;gap:12px}
+  .stage-card .si{width:38px;height:38px;border-radius:12px;font-size:15px}
+  .stage-card .st-t{font-size:16px}
+  .stage-card .st-sub{font-size:12px;font-weight:600}
+  .stage-card .st-p{font-size:12px;margin-top:2px}
+  .seg{margin-top:10px}
+  .seg button{font-size:13.5px;padding:7px 4px}
+
+  .quick{padding:12px 14px;gap:12px}
+  .quick + .quick{margin-top:8px}
+  .quick .qi{width:36px;height:36px;border-radius:11px;font-size:17px}
+  .quick b{font-size:15px}
+  .quick .qtx span{font-size:12.5px;margin-top:0}
+
+  .meter{padding:14px 16px}
+  .meter .top{margin-bottom:10px}
+  .meter .top span{font-size:13.5px;color:var(--label2)}
+  .meter .top b{font-size:16px}
+  .meter .track{height:6px}
+  .meter .na-note{font-size:12px}
+
+  .item{padding:12px 36px 12px 14px;gap:12px}
+  .ck{width:22px;height:22px}
+  .qt{font-size:14.5px;line-height:1.45}
+  .tg{font-size:12px;margin-top:3px;color:var(--label3)}
+  .now,.lv{font-size:11px;padding:1px 7px}
+  .reset{font-size:14px;padding:12px 16px}
+
+  .qnum{font-size:11.5px;padding:2px 8px;margin-bottom:8px}
+  .qbig{font-size:17px;line-height:1.45}
+  .card.pad{padding:16px}
+  details.why{margin-top:10px;padding:10px 12px;font-size:13.5px}
+  details.why summary{font-size:13px}
+  .field{margin-top:18px}
+  .lbl{font-size:14px;padding:0 4px 8px}
+  .opt{font-size:14.5px;padding:12px 44px 12px 14px}
+  .opt.on::after{right:14px;width:20px;height:20px}
+  .money{min-height:48px;padding:0 14px}
+  .money input{height:48px;font-size:16px}
+  .money span{font-size:14.5px}
+  .money-read{font-size:12.5px}
+  .answer{padding:12px 14px 26px}
+  .answer textarea{font-size:14.5px;min-height:72px}
+  .chip{font-size:13.5px;padding:8px 6px}
+  .mic,.ghost{height:34px;font-size:13px;padding:0 12px}
+
+  .pending{font-size:13.5px;padding:14px}
+  .vrow{padding:14px 16px;gap:12px}
+  .vrow .vi{width:36px;height:36px;font-size:18px}
+  .verdict.live[data-lv="ok"] .vi::before{font-size:17px}
+  .badge{font-size:11.5px;padding:2px 9px}
+  .vrow h3{font-size:16px;margin-top:2px}
+  .reasons li{font-size:14px;padding:11px 16px 11px 34px;line-height:1.55}
+  .reasons li::before{left:16px;top:18px;width:7px;height:7px}
+  .reasons li.info{font-size:13px}
+  .act{font-size:14px;padding:11px 16px;gap:10px;font-weight:500}
+  .num{width:22px;height:22px;font-size:11.5px}
+  .risk{font-size:14px;padding:12px 16px}
+  .risk .tip{font-size:13px}
+  .law{padding:12px 16px}
+  .law b{font-size:14px}
+  .law span{font-size:13px}
+
+  .hrow{padding:11px 16px;gap:10px}
+  .ht b{font-size:14.5px}
+  .ht span{font-size:12.5px;margin-top:0}
+  .hb{flex-direction:row}
+  .hbtn{height:30px;font-size:12.5px;padding:0 10px}
+  .urgent{font-size:13.5px;padding:14px 16px}
+  .urgent b{font-size:14.5px}
+  .sec-t{font-size:14px;margin:18px 4px 8px}
+  .sheet-head b{font-size:17px}
+  .sh-d{font-size:13.5px}
+  .sh-empty{font-size:13.5px}
+  .sug{padding:11px 14px}
+  .sug .sv{font-size:14.5px}
+  .sug .sw,.sug .was{font-size:12px}
+  .sug q{font-size:12.5px}
+
+  .btn{height:50px;font-size:15.5px;border-radius:14px}
+  .btn.plain{height:40px;font-size:14px}
+  .toast{font-size:13.5px}
+  #p2 .scroll{padding-bottom:150px}
+
+  /* ---------- 흰 배경 · 진한 글씨 (어두운 화면 없이 항상 밝게) ---------- */
+  :root{color-scheme:light;
+    --bg:#ffffff; --card:#ffffff; --page:#ffffff; --nav-bg:rgba(255,255,255,.94); --fade:rgba(255,255,255,0);
+    --label:#0d0f14; --label2:#2c3038; --label3:#555b66; --sep:#e4e7ec; --fill:#eef0f4; --press:#f3f5f8;
+    --line:#dfe3ea; --shadow:none}
+  .card,.opts,.money,.answer{border:1px solid var(--line);box-shadow:none}
+  .card.pending{border:2px dashed var(--line)}
+  .quick,.stage-card{border-radius:var(--radius)}
+  #stages .stage-card{border-radius:0}
+  .why,details.why{background:var(--fill)}
+  .opt.on{background:var(--primary-soft)}
+  .item.cur{background:linear-gradient(90deg,var(--accent-soft),var(--card) 70%)}
+  .card-t{color:var(--label)}
+  .tg{color:var(--label2)}
+  .note{color:var(--label3)}
+  .large .legal-top{color:var(--label2)}
+  .sheet-panel{background:var(--bg)}
+  .sheet-head{border-bottom:1px solid var(--sep);padding-bottom:12px;margin-bottom:8px}
+  .urgent{border:1px solid #f3c9c7}
+  .money:focus-within,.answer:focus-within{border-color:var(--primary);box-shadow:0 0 0 1px var(--primary)}
+  @media (max-width:520px){ body{background:var(--bg)} }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="device"><div class="screen">
+    <div class="views">
+      <!-- 시작 화면: 지금 단계 고르기 -->
+      <section class="view on" id="p0" aria-label="시작 화면">
+        <div class="nav"><span></span><span class="title"></span><button type="button" class="helpbtn" data-help>도움받기</button></div>
+        <div class="scroll">
+          <div class="large">
+            <p class="eyebrow">전월세 계약 체크리스트</p>
+            <h1>집콕체크</h1>
+            <p class="legal-top">참고용 안내예요. 법률 자문이 아니에요.</p>
+          </div>
+          <div class="grp">
+            <div class="card-t">지금 어느 단계인가요?</div>
+            <div class="card" id="stages"></div>
+          </div>
+          <div class="grp">
+            <button type="button" class="card quick" data-quick><span class="qi" aria-hidden="true">🎤</span><span class="qtx"><b>들은 말로 빠르게 채우기</b><span>말하거나 붙여 넣으면 답을 채워 줘요</span></span></button>
+            <button type="button" class="card quick help-entry" data-help><span class="qi" aria-hidden="true">☎</span><span class="qtx"><b>무료 상담받을 곳</b><span>법률구조공단 132 등</span></span></button>
+          </div>
+          <details class="grp">
+            <summary class="card-t">집콕체크 소개</summary>
+            <div class="card intro">
+              <div class="intro-row"><b>문제</b><p>전월세 계약 전에 무엇을 물어봐야 하는지, 받은 답이 안전한지 판단하기 어려워요.</p></div>
+              <div class="intro-row"><b>고객</b><p>서울(신촌 등)에서 혼자 전월세 계약을 앞둔 대학생을 위해 만들었어요.</p></div>
+              <div class="intro-row"><b>핵심 가치</b><p>지금 계약 단계에서 확인할 질문만 모아 주고, 들은 답을 고르면 법률 기준으로 영향과 다음 행동, 도움받을 곳을 알려 줘요.</p></div>
+            </div>
+          </details>
+          <p class="note">2026년 10월 · 서울 기준 참고용 안내이며 법률 자문이 아니에요.<br>결정과 그 결과에 대해 집콕체크는 책임지지 않아요.</p>
+          <p class="note foot-m" id="footM"></p><!-- 휴대폰에서만 보이는 맨 아래 문구 (내용은 footer에서 복사) -->
+        </div>
+      </section>
+
+      <!-- ① 단계별 질문 목록 -->
+      <section class="view" id="p1" aria-label="질문 목록">
+        <div class="nav"><button type="button" class="back" data-back aria-label="단계 고르기로"><svg width="12" height="20" viewBox="0 0 12 20"><path d="M10 2L2 10l8 8" stroke="currentColor" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>단계</button><span class="title"></span><button type="button" class="helpbtn" data-help>도움받기</button></div>
+        <div class="scroll">
+          <div class="large">
+            <p class="eyebrow" id="l-sub"></p>
+            <h1 id="l-title"></h1>
+            <div class="seg" id="seg" role="tablist" aria-label="계약 단계"></div>
+          </div>
+          <div class="grp">
+            <div class="card meter">
+              <div class="top"><span>이 단계에서 확인한 질문</span><b id="meterText">0 / 0</b></div>
+              <div class="track"><div class="fill" id="meterFill"></div></div>
+              <p class="na-note" id="meterNa" hidden></p>
+            </div>
+          </div>
+          <div id="list"></div>
+          <div class="grp">
+            <button type="button" class="card quick" data-quick><span class="qi" aria-hidden="true">🎤</span><span class="qtx"><b>들은 말로 빠르게 채우기</b><span>말하거나 붙여 넣으면 답을 채워 줘요</span></span></button>
+          </div>
+          <div class="grp">
+            <div class="card"><button type="button" class="reset" id="reset">모든 단계 답변 지우기</button></div>
+            <p class="foot">답변은 이 기기에만 저장돼요.</p>
+          </div>
+          <p class="note">2026년 10월 · 서울 기준 참고용 안내이며 법률 자문이 아니에요.</p>
+        </div>
+        <div class="cta"><button type="button" class="btn" id="toAnswer">이어서 확인하기</button></div>
+      </section>
+
+      <!-- ② 질문 하나: 답 고르기 + 바로 보는 결과 -->
+      <section class="view" id="p2" aria-label="질문 확인">
+        <div class="nav">
+          <button type="button" class="back" data-back aria-label="목록으로"><svg width="12" height="20" viewBox="0 0 12 20"><path d="M10 2L2 10l8 8" stroke="currentColor" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>목록</button>
+          <span class="title" id="a-stage"></span>
+          <button type="button" class="helpbtn" data-help>도움받기</button>
+        </div>
+        <div class="scroll">
+          <div class="grp" style="margin-top:12px">
+            <div class="card-t"><span id="a-cat"></span></div>
+            <div class="card pad">
+              <span class="qnum" id="a-num"></span>
+              <p class="qbig" id="a-q"></p>
+              <details class="why"><summary>왜 물어봐야 하나요?</summary><span id="a-why"></span></details>
+            </div>
+          </div>
+          <div id="a-fields"></div>
+          <div class="grp" id="live" aria-live="polite"></div>
+          <details class="grp" id="a-more">
+            <summary class="card-t">들은 말 기록하기<small>선택</small></summary>
+            <div class="answer"><textarea id="a-ans" maxlength="300" rows="3" placeholder="들은 말을 그대로 적거나 🎤로 말해 주세요." aria-label="들은 말 메모"></textarea><span class="cnt" id="a-cnt">0 / 300</span></div>
+            <div class="memo-tools"><button type="button" class="mic" data-mic="a-ans" data-label="🎤 말로 적기">🎤 말로 적기</button><button type="button" class="ghost" id="a-fill">메모에서 답 찾기</button></div>
+            <p class="fh">이름·주민번호·계좌번호는 적지 마세요.</p>
+            <div class="field">
+              <p class="lbl">누가 답했나요?</p>
+              <div class="chips" data-group="who"><button type="button" class="chip" data-v="공인중개사">공인중개사</button><button type="button" class="chip" data-v="집주인">집주인</button></div>
+            </div>
+            <div class="field">
+              <p class="lbl">어떻게 들었나요?</p>
+              <div class="chips" data-group="how"><button type="button" class="chip" data-v="구두로 들음">구두로 들음</button><button type="button" class="chip" data-v="문자·메신저">문자·메신저</button><button type="button" class="chip" data-v="서류로 확인">서류로 확인</button></div>
+            </div>
+          </details>
+        </div>
+        <div class="cta"><button type="button" class="btn" id="toNext">위 질문에 모두 답해 주세요</button><button type="button" class="btn plain" id="toList">목록으로</button></div>
+      </section>
+    </div>
+
+    <!-- 아래에서 올라오는 창 (빠른 입력 · 도움받기) -->
+    <div class="sheet" id="sheet" hidden>
+      <div class="sheet-bg" data-close></div>
+      <div class="sheet-panel" role="dialog" aria-modal="true" aria-labelledby="sheetT">
+        <div class="sheet-head"><b id="sheetT"></b><button type="button" class="x" data-close aria-label="닫기">✕</button></div>
+        <div class="sheet-body" id="sheetBody"></div>
+      </div>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </div></div>
+
+  <footer>서강대 스타트업 연계전공 수업 과제<small>마지막으로 고친 날 2026-10-31</small></footer>
+</div>
+
+<script>
+/* ---------- 판단 도우미 (기준: 판단기준.md) ---------- */
+const RANK = {info:-1, ok:0, unsure:1, bad:2}; // info: 참고 안내 (판단 색에 영향 없음)
+const LEVEL = {ok:['비교적 안전','괜찮음'], unsure:['확인 필요','확인 필요'], bad:['위험','위험']};
+const HEAD = {ok:'큰 문제는 보이지 않아요', unsure:'계약 전에 더 확인해야 해요', bad:'계약 전에 꼭 해결해야 해요'};
+const num = v => (v === '' || v == null || isNaN(+v)) ? null : +v;
+function won(n){
+  if(n == null) return '';
+  const e = Math.floor(n / 10000), m = Math.floor(n % 10000), w = Math.round((n - Math.floor(n)) * 10000);
+  const parts = [];
+  if(e) parts.push(e + '억');
+  if(m) parts.push(m.toLocaleString('ko-KR') + '만');
+  if(w) parts.push(w.toLocaleString('ko-KR'));
+  return (parts.length ? parts.join(' ') : '0') + ' 원';
+}
+// 법이 정한 순서대로 "돌려받을 수 있는 보증금" 계산 (판단기준.md)
+// ① 소액임차인 최우선변제: 서울 보증금 1억 6,500만 원 이하 → min(보증금, 5,500만 원, 집값 ÷ 2)
+// ② 내 앞 순서: 지금 등기부의 근저당 채권최고액 + 먼저 확정일자를 받은 세입자 보증금
+// ③ 남는 돈 = 집값 − ① − ②,  ④ 받을 수 있는 금액 = ① + min(나머지 보증금, ③)
+const SMALL_LIMIT = 16500, SMALL_PRIORITY = 5500; // 서울, 주택임대차보호법 시행령 제10·11조 (2023.2.21 시행)
+function recover(m){
+  if(!m.price || m.deposit==null) return [['unsure','집 시세와 내 보증금을 넣으면 법이 정한 순서대로 돌려받을 수 있는 금액을 계산해 드려요.']];
+  const ahead = (m.mort || 0) + (m.senior || 0);
+  const small = m.deposit <= SMALL_LIMIT;
+  const first = small ? Math.min(m.deposit, SMALL_PRIORITY, m.price / 2) : 0;
+  const left = Math.max(0, m.price - first - ahead);
+  const got = first + Math.min(m.deposit - first, left);
+  const steps = '① 최우선변제 ' + won(first) + (small ? '' : ' (보증금이 1억 6,500만 원을 넘어 해당 없음)') +
+    '\n② 내 앞 순서 ' + won(ahead) + ' (근저당 ' + won(m.mort || 0) + ' + 먼저 사는 세입자 ' + won(m.senior || 0) + ')' +
+    '\n③ 남는 돈 ' + won(left) + ' (집값 ' + won(m.price) + ' − ① − ②)' +
+    '\n④ 받을 수 있는 금액 ' + won(got) + ' (① + 나머지 보증금과 ③ 중 작은 것)';
+  const r = [got >= m.deposit
+    ? ['ok','법이 정한 순서대로 계산하면 보증금 ' + won(m.deposit) + '을 모두 돌려받을 수 있어요.']
+    : ['bad','법이 정한 순서대로 계산하면 보증금 ' + won(m.deposit) + ' 중 약 ' + won(m.deposit - got) + '을 돌려받지 못할 수 있어요.'],
+    ['info','계산 과정\n' + steps],
+    ['info','경매 낙찰가는 시세보다 낮을 수 있어요. 실제로 받는 금액은 이보다 적을 수 있어요.']];
+  if(first > 0){
+    r.push(['info','최우선변제는 경매 신청 등기 전에 입주와 전입신고를 마쳐야 받을 수 있어요. 다른 소액임차인이 있으면 집값의 절반을 나눠 가져 금액이 줄 수 있어요.']);
+    if(m.mort > 0) r.push(['info','근저당이 2023년 2월 21일 전에 설정됐다면 그때 기준이 적용돼 최우선변제 금액이 더 낮을 수 있어요.']);
+  }
+  return r;
+}
+function money(){ // 근저당·선순위 보증금 답을 합쳐서 계산에 쓸 숫자
+  const f5 = fv('q5'), f6 = fv('q6');
+  return {
+    price: num(ctx.price), deposit: num(ctx.deposit),
+    mort: f5.has === 'none' ? 0 : f5.has === 'yes' ? num(f5.mort) : null,
+    senior: ctx.bldg === 'single' ? 0 : (ctx.bldg === 'multi' && (f6.src === 'doc' || f6.src === 'told')) ? num(f6.senior) : null
+  };
+}
+// 서울 주택 임대차 중개보수 상한 (공인중개사법 시행규칙 제20조, 서울시 주택중개보수 조례)
+// 주거용 오피스텔(전용 85㎡ 이하 등)은 임대차 0.4% 이내, 한도 없음 (시행규칙 제20조제4항, 별표 2)
+function feeCap(deposit, rent, officetel){
+  let base = deposit + rent * 100;
+  if(base < 5000) base = deposit + rent * 70;
+  const t = officetel ? [0.004] : base < 5000 ? [0.005, 20] : base < 10000 ? [0.004, 30] : base < 60000 ? [0.003] : base < 120000 ? [0.004] : base < 150000 ? [0.005] : [0.006];
+  const raw = base * t[0];
+  const cap = Math.round((t[1] != null ? Math.min(raw, t[1]) : raw) * 10) / 10; // 천 원 단위
+  return {base, rate:t[0], cap, vat: Math.round(cap * 1.1 * 10) / 10}; // vat: 부가세 10% 포함 한도
+}
+
+/* ---------- 질문 데이터 ----------
+   fields: 앱이 판단에 쓰는 답. 고르는 칸은 꼭 골라야 하고 money(만 원)는 선택.
+   shared:true인 금액은 여러 질문이 함께 써요.
+   judge: [[수준, 이유], ...]를 돌려주고, 가장 나쁜 수준이 결과가 돼요. */
+const Q = [
+  {st:'mid',cat:'상대방 확인',tag:'집주인 본인 확인',q:'계약할 때 집주인 본인과 직접 계약할 수 있나요?',
+   why:'본인이 아니라 대리인이 나오면 위임장·인감증명서로 계약 권한을 확인해야 해요. 서류 없이 계약하면 나중에 계약 효력을 다툴 여지가 생겨요.',
+   fields:[
+     {k:'who',label:'계약하러 누가 나오나요?',opts:[['self','집주인 본인이 직접 나와요'],['agent','대리인(가족·관리인 등)이 나와요'],['unk','아직 몰라요']]},
+     {k:'docs',label:'대리인의 서류를 확인했나요?',show:f=>f.who==='agent',opts:[['full','위임장과 인감증명서 원본을 확인했어요'],['part','일부만 봤거나 사본만 봤어요'],['none','서류가 없어요']]},
+     {k:'call',label:'집주인과 직접 통화해 봤나요?',show:f=>f.who==='agent',opts:[['yes','통화해서 위임 사실을 확인했어요'],['no','통화로 확인하지 않았어요']]}],
+   judge(f){
+     if(f.who==='self') return [['ok','집주인 본인과 직접 계약해요. 신분증 이름이 등기부등본 소유자와 같은지만 맞춰 보세요.']];
+     if(f.who==='unk') return [['unsure','누가 계약하러 나올지 아직 정해지지 않았어요. 대리인이 나온다면 필요한 서류를 미리 요청하세요.']];
+     const r = [];
+     if(f.docs==='none') r.push(['bad','대리인인데 위임장·인감증명서가 없어요. 권한 없는 사람과 맺은 계약은 집주인이 인정하지 않으면 효력이 없어요(민법 제130조).']);
+     if(f.docs==='part') r.push(['unsure','서류를 일부만 봤어요. 위임장과 인감증명서 원본을 모두 확인하세요.']);
+     if(f.docs==='full') r.push(['ok','위임장과 인감증명서 원본을 확인했어요.']);
+     r.push(f.call==='yes' ? ['ok','집주인과 통화해 위임 사실을 확인했어요.'] : ['unsure','집주인 본인의 뜻을 직접 확인하지 않았어요. 계약 전에 통화로 확인하세요.']);
+     return r;
+   },
+   risk:'"가족이라서 괜찮다"는 말만으로는 대리 권한이 확인되지 않아요.',
+   acts:['대리인이라면 위임장과 집주인 인감증명서 원본 확인하기','계약 전 집주인과 직접 통화해 위임 사실 확인하기','보증금은 반드시 집주인 명의 계좌로 보내기'],
+   laws:[['민법 제114조 (대리행위의 효력)','대리인이 권한 안에서 본인을 위해 한 계약은 본인에게 효력이 생겨요.'],['민법 제130조 (무권대리)','대리권 없는 사람이 맺은 계약은 본인이 인정하지 않으면 본인에게 효력이 없어요.']]},
+  {st:'mid',cat:'상대방 확인',tag:'정보 일치 확인',q:'계약서의 임대인 정보와 계약 상대방 정보가 같은가요?',
+   why:'등기부상 소유자와 계약서의 임대인, 실제로 나온 사람이 다르면 사기일 가능성이 있어 꼭 확인해야 해요.',
+   fields:[
+     {k:'match',label:'세 정보를 비교해 보니 어떤가요?',opts:[['same','등기부 소유자·계약서 임대인·나온 사람이 모두 같아요'],['diff','서로 다른 부분이 있어요'],['unk','아직 직접 비교하지 않았어요']]},
+     {k:'reg',label:'등기부등본은 어떻게 봤나요?',opts:[['me','내가 직접 최근에 떼어 봤어요'],['shown','중개사가 보여 준 것만 봤어요'],['none','보지 않았어요']]},
+     {k:'bldg',shared:true,label:'어떤 건물인가요?',hint:'등기부등본에서 내 호실만 따로 등기돼 있는지 보면 알 수 있어요. 한 번 고르면 다른 질문에도 함께 쓰여요.',opts:[['multi','다가구예요 (건물 주인 한 명, 여러 세대)'],['single','다세대·아파트·오피스텔처럼 내 호실이 따로 등기돼 있어요'],['unk','건물 종류를 몰라요']]}],
+   judge(f){
+     const r = [];
+     if(f.match==='same') r.push(['ok','등기부 소유자, 계약서 임대인, 계약 상대방이 모두 같아요.']);
+     if(f.match==='diff') r.push(['bad','정보가 서로 달라요. 소유자가 아닌 사람과 계약하면 보증금을 보호받기 어려워요. 이유가 서류로 확인되기 전에는 계약하지 마세요.']);
+     if(f.match==='unk') r.push(['unsure','아직 직접 비교하지 않았어요. 신분증과 등기부등본을 나란히 놓고 비교하세요.']);
+     if(f.reg==='none') r.push(['unsure','등기부등본을 보지 않아 실제 소유자를 알 수 없어요.']);
+     if(f.reg==='shown') r.push(['ok','중개사가 보여 준 등기부등본도 참고는 되지만, 잔금 직전에는 직접 다시 떼어 보세요.']);
+     if(f.reg==='me') r.push(['ok','등기부등본을 직접 떼어 확인했어요.']);
+     return r;
+   },
+   risk:'계약일에 본 등기부등본이 잔금일에도 같다는 보장은 없어요.',
+   acts:['인터넷등기소에서 등기부등본을 직접 발급해 소유자 확인하기','정부24 등 신분증 진위 확인 서비스로 신분증 확인하기','잔금 직전에 등기부등본을 한 번 더 발급해 확인하기'],
+   laws:[['공인중개사법 제25조 (중개대상물의 확인·설명)','중개사는 권리관계 등을 확인해 근거 자료와 함께 설명해야 해요.'],['민법 제130조 (무권대리)','권한 없는 사람이 맺은 계약은 실제 소유자가 인정하지 않으면 효력이 없어요.']]},
+  {st:'mid',cat:'상대방 확인',tag:'공동명의 확인',q:'집주인이 여러 명이라면 모두 계약에 동의했나요?',
+   why:'여러 명이 함께 가진 집은 일부 소유자만 계약하면 계약 효력에 문제가 생길 수 있어요.',
+   fields:[
+     {k:'own',label:'등기부등본 갑구의 소유자는 어떤가요?',opts:[['one','소유자가 한 명이에요'],['all','여러 명이고, 모두 서명하거나 위임했어요'],['major','여러 명인데, 지분이 절반을 넘는 사람(들)만 계약해요'],['some','여러 명인데, 지분이 절반 이하인 사람만 계약해요'],['unk','소유자가 몇 명인지 몰라요']]}],
+   judge(f){
+     return [{
+       one:['ok','소유자가 한 명이라 공동명의 문제는 없어요.'],
+       all:['ok','공동 소유자 모두가 계약에 동의했어요.'],
+       major:['unsure','집을 빌려주는 일은 지분의 과반수로 정할 수 있어요(민법 제265조). 그래도 다툼을 막으려면 나머지 소유자의 동의서를 받아 두세요.'],
+       some:['bad','지분이 절반 이하인 소유자만으로는 집을 빌려줄 권한이 부족해요. 나머지 소유자가 계약을 인정하지 않을 수 있어요.'],
+       unk:['unsure','소유자가 몇 명인지 모르면 판단할 수 없어요. 등기부등본 갑구에서 소유자와 지분을 확인하세요.']
+     }[f.own]];
+   },
+   risk:'"다른 소유자는 가족이라 괜찮다"는 말만으로는 동의가 확인되지 않아요.',
+   acts:['등기부등본 갑구에서 소유자 수와 지분 확인하기','계약에 오지 않은 소유자의 위임장과 인감증명서 받기','계약서에 소유자 전원의 이름 적기'],
+   laws:[['민법 제265조 (공유물의 관리)','집을 빌려주는 것 같은 관리 행위는 지분의 과반수로 정해요.'],['민법 제130조 (무권대리)','동의하지 않은 소유자에게는 그 사람이 인정하지 않는 한 계약 효력이 미치지 않아요.']]},
+  {st:'pre',cat:'상대방 확인',tag:'중개사 정상 영업 확인',q:'사업자등록증, 중개사 자격증, 중개사무소 등록증, 공제증서 등을 확인해 공인중개사가 정상적으로 영업하는지 확인하셨나요?',
+   why:'등록하지 않은 중개업자나 빌린 자격증으로 하는 불법 중개를 피하고, 사고가 났을 때 손해배상 공제로 보장받으려면 미리 확인해야 해요.',
+   fields:[
+     {k:'reg',label:'중개사무소 등록을 확인했나요?',opts:[['checked','국가공간정보포털·구청에서 등록을 조회했어요'],['posted','사무소에 걸린 등록증·자격증만 봤어요'],['none','확인하지 않았어요'],['fail','조회해 보니 등록이 나오지 않아요']]},
+     {k:'person',label:'누가 상담해 줬나요?',opts:[['owner','자격증에 나온 공인중개사 본인이에요'],['assistant','중개보조원(직원)이에요'],['unk','잘 모르겠어요']]},
+     {k:'ins',label:'공제증서(보증보험)를 봤나요?',opts:[['yes','봤어요'],['no','못 봤어요']]}],
+   judge(f){
+     const r = [];
+     r.push({checked:['ok','중개사무소 등록을 조회로 확인했어요.'],
+             posted:['ok','사무소에 걸린 등록증·자격증을 확인했어요. 온라인 조회까지 하면 더 확실해요.'],
+             none:['unsure','중개사무소 등록을 확인하지 않았어요. 국가공간정보포털 "부동산중개업 조회"로 확인하세요.'],
+             fail:['bad','등록이 조회되지 않아요. 무등록 중개업자와 거래하면 사고가 나도 공제로 보상받기 어려워요.']}[f.reg]);
+     r.push({owner:['ok','공인중개사 본인이 상담했어요.'],
+             assistant:['unsure','중개보조원은 현장 안내 같은 보조 업무만 할 수 있어요. 확인·설명서와 계약서에는 개업공인중개사가 서명·날인하고, 그 중개를 한 소속공인중개사가 있으면 함께 서명·날인해야 해요(공인중개사법 제25조제4항, 제26조제2항).'],
+             unk:['unsure','상담한 사람이 자격증 주인인지 확인하세요. 중개보조원은 보조원이라는 사실을 먼저 알려야 해요.']}[f.person]);
+     r.push(f.ins==='yes' ? ['ok','공제증서를 확인했어요.'] : ['unsure','공제증서를 못 봤어요. 사고 때 보상받을 수 있는지 보장 기간과 금액을 확인하세요.']);
+     return r;
+   },
+   risk:'자격증의 사진·이름과 실제로 상담한 사람이 다르면 자격증을 빌린 것일 수 있어요.',
+   acts:['국가공간정보포털 "부동산중개업 조회"로 등록 여부와 직원 직급 확인하기','공제증서의 보장 기간과 금액 확인하기','계약서에 개업공인중개사의 서명·날인이 있는지 확인하기'],
+   laws:[['공인중개사법 제17조 (중개사무소등록증 등의 게시)','중개사는 등록증·자격증 등을 사무소 안 잘 보이는 곳에 걸어 두어야 해요.'],['공인중개사법 제18조의4 (중개보조원의 고지의무)','중개보조원은 손님에게 자신이 보조원이라는 사실을 먼저 알려야 해요.'],['공인중개사법 제26조 (거래계약서의 작성 등)','거래계약서에는 개업공인중개사가 서명·날인하고, 그 중개를 한 소속공인중개사가 있으면 함께 서명·날인해야 해요.'],['공인중개사법 제30조 (손해배상책임의 보장)','중개사는 중개 사고에 대비해 보증보험이나 공제에 가입해야 해요.']]},
+  {st:'pre',cat:'권리관계 확인',tag:'근저당 확인',q:'이 집에 대출(근저당)이 있나요? 있다면 금액은 얼마인가요?',
+   why:'경매로 넘어가면 대출이 보증금보다 먼저 갚아지기 때문에, 보증금을 돌려받을 수 있는지와 바로 이어져요.',
+   fields:[
+     {k:'has',label:'근저당이 있나요?',opts:[['none','없어요'],['yes','있어요'],['unk','있는지 몰라요']]},
+     {k:'src',label:'어떻게 확인했나요?',show:f=>f.has==='none'||f.has==='yes',opts:[['reg','등기부등본 을구에서 직접 확인했어요'],['told','말로만 들었어요']]},
+     {k:'mort',type:'money',label:'채권최고액',hint:'등기부등본 을구에 적힌 금액이에요.',show:f=>f.has==='yes'},
+     {k:'price',type:'money',shared:true,label:'집 매매 시세',hint:'다가구 원룸이면 건물 전체 가격이에요. 빌라처럼 시세를 모르면 공시가격 × 1.4를 넣어 보세요.'},
+     {k:'deposit',type:'money',shared:true,label:'내 보증금'}],
+   judge(f){
+     const r = [], m = money();
+     if(f.has==='unk') r.push(['unsure','근저당이 있는지 몰라요. 등기부등본 을구를 직접 확인해야 해요.']);
+     if(f.has==='none' && f.src==='reg') r.push(['ok','등기부등본에서 근저당이 없는 것을 확인했어요.']);
+     if(f.src==='told') r.push(['unsure','말로 들은 내용은 확인된 정보가 아니에요. 등기부등본 을구로 직접 확인하세요.']);
+     if(f.has==='yes' && m.mort==null) r.push(['unsure','근저당이 있는데 금액을 몰라요. 채권최고액을 넣으면 돌려받을 수 있는 금액을 계산해 드려요.']);
+     if(m.mort!=null && (m.mort > 0 || (m.price && m.deposit!=null))){
+       r.push(...recover(m));
+       if(m.senior==null && ctx.bldg!=='single') r.push(['unsure','다가구라면 ‘선순위 보증금’ 질문에서 먼저 사는 세입자 보증금도 넣어야 정확히 계산돼요.']);
+     }
+     return r;
+   },
+   risk:'"1억 정도"는 정확하지 않아요. 등기부등본의 채권최고액으로 직접 확인해야 해요.',
+   acts:['등기부등본 을구에서 채권최고액 확인하기','특약에 "잔금일까지 근저당 말소" 넣기 요청하기','입주 당일 전입신고하고 확정일자 받기'],
+   laws:[['민법 제356조 (저당권의 내용)','저당권자는 경매 대금에서 다른 채권자보다 먼저 변제받을 권리가 있어요.'],['주택임대차보호법 제3조의2 (보증금의 회수)','입주·전입신고와 확정일자를 갖추면 그 뒤 권리보다 먼저 받지만, 이미 있는 근저당보다 앞서지는 못해요. 순서는 요건을 갖춘 날의 선후로 정해져요.'],['주택임대차보호법 제8조, 시행령 제10·11조 (소액임차인)','서울은 보증금 1억 6,500만 원 이하면 5,500만 원까지 근저당보다도 먼저 받아요. 집값의 절반까지만 받을 수 있어요.']]},
+  {st:'pre',cat:'권리관계 확인',tag:'선순위 보증금',q:'먼저 살고 있는 세입자들의 보증금 합계는 얼마인가요?',
+   why:'다가구 원룸은 먼저 들어온 세입자의 보증금이 우선이라 내 순위가 밀릴 수 있어요.',
+   fields:[
+     {k:'bldg',shared:true,label:'어떤 건물인가요?',hint:'등기부등본에서 내 호실만 따로 등기돼 있는지 보면 알 수 있어요. ‘정보 일치 확인’ 질문과 같은 칸이에요.',opts:[['multi','다가구예요 (건물 주인 한 명, 여러 세대)'],['single','다세대·아파트·오피스텔처럼 내 호실이 따로 등기돼 있어요'],['unk','건물 종류를 몰라요']]},
+     {k:'src',label:'먼저 사는 세입자 보증금은 어떻게 알았나요?',show:f=>ctx.bldg==='multi',opts:[['doc','확정일자 현황·전입세대 확인서로 확인했어요'],['told','집주인·중개사 말로만 들었어요'],['unk','확인하지 못했어요']]},
+     {k:'senior',type:'money',label:'먼저 사는 세입자 보증금 합계',show:f=>ctx.bldg==='multi'&&(f.src==='doc'||f.src==='told')},
+     {k:'deposit',type:'money',shared:true,label:'내 보증금'}],
+   judge(f){
+     const r = [], m = money();
+     if(ctx.bldg==='single') r.push(['ok','해당 없음: 내 호실이 따로 등기된 집이라 다른 호실 세입자 보증금이 내 순위에 영향을 주지 않아요.']);
+     if(ctx.bldg==='unk') r.push(['unsure','건물 종류를 몰라요. 건축물대장이나 등기부등본으로 다가구인지 확인하세요.']);
+     if(f.src==='told') r.push(['unsure','집주인·중개사에게 말로 들은 보증금 금액은 확인된 정보가 아니에요. 집주인 동의를 받아 확정일자 현황을 확인하세요.']);
+     if(f.src==='unk') r.push(['unsure','먼저 사는 세입자 보증금을 모르면 내 보증금이 안전한지 판단할 수 없어요.']);
+     if(f.src==='doc' || f.src==='told'){ // 말로 들은 금액도 5번처럼 계산에 써요 (🟠는 위에서 붙어요)
+       const f5 = fv('q5');
+       if(m.senior==null) r.push(['unsure','보증금 합계를 넣으면 돌려받을 수 있는 금액을 계산해 드려요.']);
+       // 5번 근저당 금액을 모르면 0원으로 보지 않고 계산하지 않아요
+       if(m.mort==null) r.push(['unsure',
+         f5.has==='yes' ? '5번에 근저당이 있다고 했지만 채권최고액을 넣지 않았어요. 넣으면 돌려받을 수 있는 금액을 계산해 드려요.'
+         : f5.has==='unk' ? '5번에서 근저당이 있는지 모른다고 했어요. 등기부등본 을구를 확인해야 돌려받을 수 있는 금액을 계산할 수 있어요.'
+         : '‘근저당 확인’ 질문의 근저당을 먼저 확인해야 돌려받을 수 있는 금액을 계산할 수 있어요.']);
+       if(m.senior!=null && m.mort!=null){
+         r.push(...recover(m));
+         if(f5.src==='told') r.push(['unsure', f5.has==='none'
+           ? '5번 근저당이 없다는 건 말로만 들은 내용이에요. 등기부등본 을구로 직접 확인하세요.'
+           : '5번 근저당 금액은 말로만 들은 내용이에요. 등기부등본 을구의 채권최고액으로 직접 확인하세요.']);
+       }
+     }
+     if(ctx.bldg==='multi' && (m.senior==null || m.mort==null) && m.deposit!=null && m.deposit <= SMALL_LIMIT) // 계산을 못 할 때만 안내
+       r.push(['info','서울에서 보증금 1억 6,500만 원 이하라 소액임차인 최우선변제(5,500만 원까지, 집값의 절반까지) 대상일 수 있어요.']);
+     return r;
+   },
+   risk:'다가구 주택은 등기부등본에 세입자 보증금이 나오지 않아요.',
+   acts:['집주인 동의를 받아 확정일자 부여 현황 열람하기','전입세대 확인서로 실제 사는 세대 수 확인하기','확인이 어렵다면 계약 보류도 생각하기'],
+   laws:[['주택임대차보호법 제3조의6 (확정일자 부여 및 임대차 정보제공 등)','계약하려는 사람은 집주인 동의를 받아 확정일자 부여일·보증금 등 정보를 요청할 수 있어요.'],['주택임대차보호법 제8조, 시행령 제10·11조 (소액임차인)','서울은 보증금 1억 6,500만 원 이하면 5,500만 원까지 다른 담보권자보다 먼저 받을 수 있어요(2023년 2월 기준).']]},
+  {st:'pre',cat:'권리관계 확인',tag:'보증보험 가능 여부',q:'보증금 반환보증에 가입할 수 있는 집인가요?',
+   why:'가입이 안 되는 집이라면 권리관계나 건물에 문제가 있다는 신호일 수 있어요.',
+   fields:[
+     {k:'ins',label:'보증기관에 조회해 봤나요?',opts:[['ok','조회해 보니 가입할 수 있어요'],['unk','아직 조회하지 않았어요'],['no','가입할 수 없다고 나왔어요']]}],
+   judge(f){
+     const r = [{ok:['ok','보증금 반환보증에 가입할 수 있어요. 집주인이 보증금을 못 돌려줘도 보증기관에서 대신 받을 수 있어요.'],
+                 unk:['unsure','아직 조회하지 않았어요. 보증기관 누리집이나 앱에서 주소와 보증금으로 미리 조회해 보세요.'],
+                 no:['bad','가입할 수 없는 집이에요. 대출이 많거나 건물 용도에 문제가 있다는 신호일 수 있어요.']}[f.ins]];
+     // HUG 전세보증금반환보증 기준 (khug.or.kr): 주택가액 = 주택가격 × 90%
+     const m = money();
+     if(f.ins!=='no' && m.price && m.deposit!=null && m.mort!=null){
+       const value = m.price * 0.9, ahead = m.mort + (m.senior || 0), out = [];
+       if(m.deposit + ahead > value) out.push('보증금과 선순위 채권의 합(' + won(m.deposit + ahead) + ')이 주택가격의 90%(' + won(value) + ')를 넘어요');
+       if(m.mort > value * 0.6) out.push('근저당(' + won(m.mort) + ')이 주택가액의 60%(' + won(value * 0.6) + ')를 넘어요');
+       if(ctx.bldg==='multi' && ahead > value * 0.8) out.push('근저당과 다른 세입자 보증금의 합(' + won(ahead) + ')이 주택가액의 80%(' + won(value * 0.8) + ')를 넘어요');
+       r.push(out.length ? ['unsure','HUG 기준으로 계산하면 가입이 어려울 수 있어요. ' + out.join(' / ') + '.']
+                         : ['info','HUG 기준(보증금 + 선순위 채권 ≤ 주택가격 × 90%)으로 계산하면 한도 안이에요.']);
+       r.push(['info','HUG는 주택가격을 공시가격 × 140% 등 정해진 순서로 정해요. 넣은 시세와 다를 수 있고, 실제 가입 여부는 보증기관 심사로 정해져요.']);
+     }
+     return r;
+   },
+   risk:'"보증보험은 필요 없다"는 말에 넘어가지 마세요. 가입할 수 있는지는 직접 확인해야 해요.',
+   acts:['HUG·HF·SGI서울보증 중 한 곳에서 가입 가능 여부 미리 조회하기','특약에 "보증 가입이 안 되면 계약을 해제하고 계약금을 돌려준다" 넣기','계약 기간의 절반이 지나기 전에 가입 신청하기'],
+   laws:[['주택임대차보호법 제3조의2 (보증금의 회수)','전입신고와 확정일자를 갖추면 경매 때 뒤 순위 권리보다 먼저 보증금을 받을 수 있어요.'],['참고 · HUG 전세보증금반환보증 기준','보증금과 선순위 채권의 합이 주택가격 × 90% 이내, 선순위 채권이 주택가액(주택가격 × 90%)의 60% 이내여야 해요. 다가구는 선순위 채권과 다른 세입자 보증금의 합이 주택가액의 80% 이내여야 해요. 압류·가압류 등 권리침해나 위반건축물이 있으면 가입할 수 없어요.']]},
+  {st:'pre',cat:'권리관계 확인',tag:'세금 완납 확인',q:'국세, 지방세를 완납하셨나요?',
+   why:'집주인이 밀린 세금이 있으면 경매 때 세금이 내 보증금보다 먼저 빠져나가 보증금을 떼일 위험이 있어요.',
+   fields:[
+     {k:'tax',label:'세금 완납을 어떻게 확인했나요?',opts:[['cert','국세·지방세 납세증명서로 확인했어요'],['told','말로만 없다고 들었어요'],['refuse','보여 달라고 했는데 거절했어요'],['owed','밀린 세금이 있어요']]}],
+   judge(f){
+     return [{cert:['ok','납세증명서로 밀린 세금이 없는 것을 확인했어요.'],
+              told:['unsure','"세금 밀린 거 없다"는 말은 증명이 아니에요. 납세증명서를 보여 달라고 하세요.'],
+              refuse:['bad','집주인은 계약할 때 납세증명서를 보여 줘야 해요(주택임대차보호법 제3조의7). 거절했다면 위험 신호예요.'],
+              owed:['bad','밀린 세금은 경매 때 내 보증금보다 먼저 가져갈 수 있어요. 잔금 전에 모두 내기로 특약에 적거나 계약을 다시 생각해 보세요.']}[f.tax]];
+   },
+   risk:'계약한 뒤에 생긴 체납은 계약할 때 알 수 없어요. 잔금 직전에도 다시 확인하면 좋아요.',
+   acts:['집주인에게 국세·지방세 납세증명서 보여 달라고 요청하기','집주인 동의를 받아 세무서·주민센터에서 미납 세금 열람하기','특약에 "잔금일까지 밀린 세금 완납" 넣기'],
+   laws:[['주택임대차보호법 제3조의7 (임대인의 정보 제시 의무)','집주인은 계약할 때 확정일자 정보와 납세증명서를 세입자에게 보여 줘야 해요.'],['국세기본법 제35조 (국세의 우선)','국세는 원칙적으로 다른 채권보다 먼저 받아 가요.']]},
+  {st:'pre',cat:'집 상태 확인',tag:'건축물 용도',q:'건축물대장상 주거용으로 등록된 방인가요?',
+   why:'근린생활시설이나 불법으로 고친 방은 보증보험 가입이나 법적 보호에 제약이 생길 수 있어요.',
+   fields:[
+     {k:'use',label:'건축물대장의 용도는 무엇인가요?',opts:[['house','다가구·다세대·아파트 등 주택이에요'],['officetel','오피스텔이에요'],['retail','근린생활시설 등 주택이 아니에요'],['unk','건축물대장을 보지 않았어요']]},
+     {k:'viol',label:'"위반건축물" 표시가 있나요?',show:f=>f.use&&f.use!=='unk',opts:[['no','없어요'],['yes','있어요']]}],
+   judge(f){
+     const r = [{house:['ok','주거용 건물로 등록돼 있어요.'],
+                 officetel:['ok','오피스텔도 실제로 살면서 전입신고를 하면 보호받을 수 있어요. 집주인이 전입신고를 못 하게 하면 위험 신호예요.'],
+                 retail:['bad','주택이 아닌 건물을 방으로 고친 곳이에요. 보증 가입이 어렵고, 원상복구 명령이 나오면 이사해야 할 수도 있어요.'],
+                 unk:['unsure','건축물대장을 보지 않았어요. 정부24에서 무료로 떼어 볼 수 있어요.']}[f.use]];
+     if(f.viol==='yes') r.push(['bad','위반건축물로 표시돼 있어요. 보증 가입이 거절되거나 원상복구 명령이 나올 수 있어요.']);
+     return r;
+   },
+   risk:'겉보기엔 원룸이어도 서류상 "근린생활시설"인 경우가 많아요.',
+   acts:['정부24에서 건축물대장 발급해 용도 확인하기','"위반건축물" 표시가 있는지 확인하기','실제 호수와 건축물대장의 호수가 같은지 확인하기'],
+   laws:[['주택임대차보호법 제2조 (적용 범위)','주거용 건물을 빌린 경우에 이 법의 보호를 받아요. 실제로 주거용으로 쓰는지도 함께 따져요.'],['건축법 제19조 (용도변경)','건물 용도를 바꾸려면 허가를 받거나 신고해야 해요.']]},
+  {st:'mid',cat:'계약 조건 확인',tag:'보증금 반환 시점',q:'계약이 끝나는 날, 다음 세입자가 없어도 보증금을 바로 돌려받을 수 있나요?',
+   why:'"다음 세입자가 들어와야 준다"는 조건이 붙으면 이사 나간 뒤에도 돌려받는 날이 몇 달씩 밀릴 수 있어요. 특약으로 남겨 두는 게 안전해요.',
+   fields:[
+     {k:'when',label:'보증금은 언제 돌려준대요?',opts:[['end','계약이 끝나는 날 바로 돌려준대요'],['next','다음 세입자가 들어와야 준대요'],['unk','정확히 말하지 않았어요']]},
+     {k:'writ',label:'이 약속을 계약서에 적나요?',show:f=>f.when==='end',opts:[['yes','특약에 적기로 했어요'],['no','말로만 들었어요']]}],
+   judge(f){
+     if(f.when==='next') return [['bad','"다음 세입자가 와야 준다"는 조건이 있어요. 이사 나간 뒤에도 몇 달씩 보증금을 못 받을 수 있어요. 특약에 만기일 반환을 넣어 달라고 하세요.']];
+     if(f.when==='unk') return [['unsure','돌려주는 날이 정해지지 않았어요. 정확한 날짜를 특약에 적어 달라고 하세요.']];
+     return [f.writ==='yes' ? ['ok','계약이 끝나는 날 돌려받기로 하고 특약에도 적었어요.'] : ['unsure','만기일에 돌려준다는 말을 특약으로 남겨 두세요. 말로 한 약속은 증명하기 어려워요.']];
+   },
+   risk:'보증금을 받기 전에 이사하고 전입신고를 옮기면 보호를 잃을 수 있어요. 이럴 땐 임차권등기명령을 먼저 신청하세요.',
+   acts:['특약에 "계약 종료일에 보증금 전액 반환" 넣기','계약을 끝낼 거라면 만기 2개월 전까지 문자로 알리기','못 받으면 이사 전에 임차권등기명령 신청하기'],
+   laws:[['주택임대차보호법 제4조 (임대차기간 등)','계약이 끝나도 보증금을 돌려받을 때까지는 임대차 관계가 이어지는 것으로 봐요.'],['주택임대차보호법 제3조의3 (임차권등기명령)','보증금을 못 받았을 때 법원에 신청하면 이사 가도 보호받을 수 있어요.'],['주택임대차보호법 제6조 (계약의 갱신)','세입자가 만기 2개월 전까지 알리지 않으면 같은 조건으로 자동 연장돼요.']]},
+  {st:'mid',cat:'계약 조건 확인',tag:'중도 해지',q:'계약 기간 중에 나가야 하면 어떤 조건이 붙나요?',
+   why:'학기·휴학 일정 때문에 중간에 나갈 일이 많아서 중개보수·위약 조건을 미리 알아 둬야 해요.',
+   fields:[
+     {k:'cond',label:'중간에 나가는 조건을 어떻게 말했나요?',opts:[['clear','몇 달 전에 알리면 나갈 수 있고, 비용도 정했어요'],['vague','"그때 봐서"처럼 애매하게 말했어요'],['no','중간에는 나갈 수 없다고 했어요']]},
+     {k:'writ',label:'이 조건을 계약서에 적나요?',show:f=>f.cond==='clear',opts:[['yes','특약에 적기로 했어요'],['no','말로만 들었어요']]}],
+   judge(f){
+     if(f.cond==='vague') return [['unsure','조건이 애매해요. 나중에 다툼이 되기 쉬우니 알리는 기간과 비용을 숫자로 정해 달라고 하세요.']];
+     if(f.cond==='no') return [['unsure','특약이 없으면 계약 기간 중에는 원칙적으로 마음대로 해지할 수 없어요(민법 제636조). 휴학·교환학생 계획이 있다면 학기 일정과 맞는지 다시 생각해 보세요.']];
+     return [f.writ==='yes' ? ['ok','중도 해지 조건이 분명하고 특약에도 적었어요.'] : ['unsure','조건은 분명하지만 말로만 들었어요. 특약에 적어 두세요.']];
+   },
+   risk:'중간에 나가면 다음 세입자를 구하는 중개보수를 세입자가 내는 경우가 많아요. 미리 정해 두세요.',
+   acts:['특약에 "중도 해지 시 ○개월 전 통보, 중개보수는 ○○ 부담" 넣기','휴학·교환학생 계획이 있다면 계약 기간을 짧게 할 수 있는지 물어보기','해지 조건에 대한 답을 문자로 남기기'],
+   laws:[['민법 제636조 (기간의 약정 있는 임대차의 해지통고)','계약서에 중간에 해지할 권리를 정해 둔 경우에만 기간 중에 해지를 알릴 수 있어요.'],['주택임대차보호법 제6조의2 (묵시적 갱신의 경우 계약의 해지)','자동으로 연장된 계약은 세입자가 언제든 해지를 알릴 수 있고, 3개월 뒤에 효력이 생겨요.']]},
+  {st:'pre',cat:'계약 조건 확인',tag:'시세 비교',q:'시세 대비 보증금이 비슷한가요?',
+   why:'주변 시세보다 보증금이 지나치게 높다면 깡통전세나 전세사기의 위험 신호라서 적정 시세를 꼭 알아야 해요.',
+   fields:[
+     {k:'cmp',label:'주변 비슷한 방과 비교하면 어떤가요?',opts:[['same','비슷해요'],['high','주변보다 꽤 비싸요'],['cheap','주변보다 훨씬 싸요'],['unk','비교해 보지 않았어요']]},
+     {k:'price',type:'money',shared:true,label:'집 매매 시세',hint:'‘근저당 확인’ 질문과 같은 값이에요. 다가구면 건물 전체 가격이에요.'},
+     {k:'deposit',type:'money',shared:true,label:'내 보증금'}],
+   judge(f){
+     const r = [{same:['ok','주변 시세와 비슷해요.'],
+                 high:['bad','주변보다 보증금이 꽤 높아요. 집값에 비해 보증금이 지나치게 높으면 깡통전세 위험이 있어요.'],
+                 cheap:['unsure','주변보다 너무 싸면 허위 매물이거나 숨은 문제가 있을 수 있어요. 등기부등본과 건축물대장을 꼭 확인하세요.'],
+                 unk:['unsure','시세를 비교하지 않았어요. 같은 동네 비슷한 방 3곳 이상과 비교해 보세요.']}[f.cmp]];
+     const m = money();
+     if(m.price && m.deposit!=null){
+       const pct = Math.round(m.deposit / m.price * 100);
+       if(pct > 90) r.push(['bad','내 보증금만 해도 집값의 ' + pct + '%예요. 주택가격의 90%를 넘으면 HUG 반환보증에 가입할 수 없는 수준이에요(깡통전세 위험).']);
+     }
+     return r;
+   },
+   risk:'"이 동네는 원래 이래요"라는 말만 믿지 말고 숫자로 비교하세요.',
+   acts:['국토교통부 실거래가 공개시스템에서 같은 건물·동네 가격 찾아보기','근처 다른 중개사무소 2곳 이상에 시세 물어보기','보증금과 대출을 합친 금액이 집값에 비해 너무 높지 않은지 계산해 보기'],
+   laws:[['공인중개사법 제25조 (중개대상물의 확인·설명)','중개사는 거래 예정 금액 등을 근거 자료와 함께 설명해야 해요.'],['참고 · 국토교통부 실거래가 공개시스템','실제로 거래된 가격을 누구나 무료로 찾아볼 수 있어요.']]},
+  {st:'mid',cat:'돈이 오가는 순간',tag:'입금 계좌 명의',q:'보증금과 월세는 집주인 본인 명의 계좌로 보내나요?',
+   why:'대리인이나 중개인 계좌로 보냈다가 집주인이 못 받았다고 하는 사례가 흔해요.',
+   fields:[
+     {k:'acct',label:'어디로 돈을 보내라고 했나요?',opts:[['owner','집주인 본인 명의 계좌예요'],['other','대리인·중개사 등 다른 사람 명의 계좌예요'],['cash','현금으로 달래요'],['unk','아직 계좌를 받지 않았어요']]}],
+   judge(f){
+     return [{owner:['ok','집주인 본인 명의 계좌로 보내요. 이체할 때 받는 사람 이름을 한 번 더 확인하세요.'],
+              other:['bad','집주인이 아닌 사람에게 보낸 돈은 집주인이 "못 받았다"고 할 수 있어요. 집주인 명의 계좌로 바꿔 달라고 하세요.'],
+              cash:['bad','현금은 준 증거가 남지 않아요. 집주인 명의 계좌로 이체하세요.'],
+              unk:['unsure','계좌를 받으면 받는 사람 이름이 등기부 소유자와 같은지 꼭 확인하세요.']}[f.acct]];
+   },
+   risk:'현금으로 주는 것은 피하세요. 계좌 이체 기록이 가장 확실한 증거예요.',
+   acts:['이체 전 받는 사람 이름이 등기부 소유자와 같은지 확인하기','계약서에 입금 계좌 적어 두기','이체 확인증 저장해 두기'],
+   laws:[['민법 제114조 (대리행위의 효력)','대리 권한이 확인되지 않은 사람에게 준 돈은 집주인에게 준 것으로 인정되지 않을 수 있어요.'],['공인중개사법 제31조 (계약금등의 반환채무이행의 보장)','중개사는 거래 안전을 위해 계약금 등을 금융기관 등에 맡기도록 권할 수 있어요.']]},
+  {st:'mid',cat:'돈이 오가는 순간',tag:'잔금일 권리 변동',q:'잔금일까지 추가 대출을 받지 않는다는 내용을 특약에 넣어 줄 수 있나요?',
+   why:'계약한 뒤 잔금 전에 근저당을 새로 잡으면 계약 때 확인한 등기부가 의미 없어져요.',
+   fields:[
+     {k:'clause',label:'특약을 넣어 달라고 하니 뭐라고 했나요?',opts:[['yes','계약서 특약에 넣기로 했어요'],['oral','말로만 약속했어요'],['refuse','특약은 못 넣는다고 했어요'],['unk','아직 물어보지 않았어요']]}],
+   judge(f){
+     return [{yes:['ok','특약이 있으면 약속을 어겼을 때 계약을 해제하고 손해배상을 요구할 근거가 생겨요.'],
+              oral:['unsure','말로 한 약속은 증명하기 어려워요. 계약서 특약으로 남겨 달라고 하세요.'],
+              refuse:['bad','특약을 거절했다면 잔금 전에 대출이 생길 수 있다는 뜻일 수 있어요. 잔금 당일 등기부를 꼭 다시 보고, 계약을 다시 생각해 보세요.'],
+              unk:['unsure','아직 물어보지 않았어요. 계약서를 쓰기 전에 특약 문장을 정해 달라고 하세요.']}[f.clause]];
+   },
+   risk:'전입신고 효력은 다음 날 0시에 생기지만, 근저당은 등기한 즉시 효력이 생겨요. 잔금 당일 잡힌 근저당이 내 보증금보다 앞설 수 있어요.',
+   acts:['특약에 "잔금일 다음 날까지 근저당 등 새 권리 설정 금지, 어기면 계약 해제와 손해배상" 넣기','잔금 직전에 등기부등본 다시 발급해 확인하기','잔금 당일 전입신고하고 확정일자 받기'],
+   laws:[['주택임대차보호법 제3조 (대항력 등)','집에 들어가 살고 전입신고를 하면 다음 날 0시부터 다른 사람에게 권리를 주장할 수 있어요.'],['주택임대차보호법 제3조의2 (보증금의 회수)','확정일자를 갖추면 그 뒤에 생긴 권리보다 먼저 보증금을 받을 수 있어요.']]},
+  {st:'mid',cat:'돈이 오가는 순간',tag:'중개보수',q:'중개보수는 얼마이고, 영수증을 받을 수 있나요?',
+   why:'법으로 정한 한도가 있는 비용인데, 학생들이 확인 없이 넘어가는 경우가 많아요.',
+   fields:[
+     {k:'fee',type:'money',label:'중개보수',hint:'부가세를 포함한 금액을 넣어 주세요.'},
+     {k:'deposit',type:'money',shared:true,label:'내 보증금'},
+     {k:'rent',type:'money',shared:true,label:'월세',hint:'전세라면 0을 넣어 주세요.'},
+     {k:'rcpt',label:'영수증을 받을 수 있나요?',opts:[['yes','영수증(현금영수증)을 받기로 했어요'],['no','영수증은 안 준대요'],['unk','물어보지 않았어요']]}],
+   judge(f){
+     const r = [], fee = num(f.fee), dep = num(ctx.deposit), rent = num(ctx.rent);
+     if(fee==null || dep==null || rent==null) r.push(['unsure','중개보수, 보증금, 월세를 모두 넣으면 서울 법정 한도와 비교해 드려요.']);
+     else {
+       const officetel = fv('q9').use === 'officetel';
+       const c = feeCap(dep, rent, officetel);
+       const info = '거래금액 ' + won(c.base) + ' 기준 한도는 ' + won(c.cap) + '(요율 ' + (c.rate * 100).toFixed(1) + '%' + (officetel ? ', 주거용 오피스텔' : '') + '), 부가세 10%를 포함하면 ' + won(c.vat) + '이에요.';
+       const basis = officetel
+         ? ['info','9번에서 오피스텔을 골라 주거용 오피스텔 기준(거래금액의 0.4% 이내, 한도 없음)으로 계산했어요. 전용 85㎡ 이하이고 부엌·화장실·목욕 시설을 갖춘 오피스텔에 해당해요.']
+         : ['info', fv('q9').use ? '주택 기준 요율로 계산했어요.' : '주택 기준 요율로 계산했어요. 오피스텔이라면 9번에서 고르면 오피스텔 기준(0.4% 이내, 한도 없음)으로 계산해요.'];
+       if(fee <= c.cap) r.push(['ok', info + ' 중개보수 ' + won(fee) + '은 한도 안이에요.']);
+       else if(fee <= c.vat) r.push(['ok', info + ' 중개보수 ' + won(fee) + '은 부가세 10%를 포함한 금액으로 보면 한도 안이라 괜찮아요.']);
+       else r.push(['bad', info + ' 중개보수 ' + won(fee) + '은 부가세 10%를 더해도 한도를 넘어요. 넘는 금액은 받을 수 없고 구청에 신고할 수 있어요.']);
+       r.push(basis);
+     }
+     r.push({yes:['ok','영수증을 받기로 했어요.'],
+             no:['bad','중개사무소는 10만 원 이상이면 현금영수증을 꼭 발급해야 하는 업종이에요. 거절하면 국세청에 신고할 수 있어요.'],
+             unk:['unsure','영수증이나 현금영수증을 받을 수 있는지 미리 물어보세요.']}[f.rcpt]);
+     return r;
+   },
+   risk:'"수고비", "컨설팅비" 같은 이름으로 따로 받는 돈도 중개보수에 포함돼요.',
+   acts:['사무소에 걸린 중개보수 요율표 확인하기','보수 금액을 계약 전에 문자로 받아 두기','영수증이나 현금영수증 꼭 받기'],
+   laws:[['공인중개사법 제32조 (중개보수 등)','중개보수는 법령과 조례에서 정한 한도 안에서 받아야 해요.'],['공인중개사법 제33조 (금지행위)','한도를 넘는 돈이나 금품을 받는 것은 금지돼요.'],['공인중개사법 시행규칙 제20조, 별표 1·2','주택 임대차는 거래금액 5천만 원 미만 0.5%(한도 20만 원), 1억 원 미만 0.4%(한도 30만 원), 6억 원 미만 0.3%예요. 주거용 오피스텔 임대차는 0.4% 이내(한도 없음)예요. 실제 요율은 이 한도 안에서 시·도 조례로 정해요.']]},
+  {st:'fin',cat:'잔금 보내기 전',tag:'잔금일 등기부 재확인',q:'잔금을 보내기 직전에 등기부등본을 다시 떼어 봤나요?',
+   why:'계약한 날과 잔금일 사이에 집주인이 새로 대출을 받거나 집이 압류될 수 있어요. 잔금을 보내기 전에 달라진 게 없는지 마지막으로 확인해야 해요.',
+   fields:[
+     {k:'chk',label:'잔금 직전에 본 등기부등본은 어떤가요?',opts:[['same','오늘 다시 떼어 봤고, 계약 때와 달라진 게 없어요'],['changed','새 근저당·가압류·소유자 변경 등 달라진 게 있어요'],['none','아직 다시 떼어 보지 않았어요']]}],
+   judge(f){
+     return [{
+       same:['ok','계약 때와 달라진 게 없어요. 잔금을 보낸 날 바로 전입신고와 확정일자를 받으세요.'],
+       changed:['bad','계약 뒤에 권리관계가 바뀌었어요. 잔금을 보내기 전에 멈추고, 집주인·중개사에게 이유를 서류로 확인하고 무료 법률상담을 받아 보세요.'],
+       none:['unsure','잔금을 보내기 직전에 인터넷등기소에서 등기부등본을 다시 떼어 보세요.']}[f.chk]];
+   },
+   risk:'전입신고의 효력(대항력)은 다음 날 0시부터 생겨요. 잔금일 당일에 집주인이 대출을 받으면 그 대출이 내 보증금보다 앞설 수 있어요.',
+   acts:['잔금 보내기 직전 인터넷등기소에서 등기부등본 다시 떼기','갑구(소유자·압류)와 을구(근저당)가 계약 때와 같은지 비교하기','달라진 게 있으면 잔금을 보내지 말고 상담받기'],
+   laws:[['주택임대차보호법 제3조 제1항 (대항력)','집을 넘겨받고 주민등록(전입신고)을 마치면 그 다음 날부터 제3자에게도 임차권을 주장할 수 있어요.']]},
+  {st:'fin',cat:'잔금 보내기 전',tag:'전입신고·확정일자',q:'입주하는 날 전입신고와 확정일자를 받을 계획인가요?',
+   why:'입주와 전입신고를 마쳐야 대항력이 생기고, 확정일자까지 받아야 집이 경매로 넘어가도 순서에 따라 보증금을 돌려받을 수 있어요.',
+   fields:[
+     {k:'move',label:'전입신고는 언제 하나요?',opts:[['day','잔금·입주하는 날 바로 해요'],['later','며칠 뒤에 할 거예요'],['no','하지 않을 거예요 (집주인이 하지 말래요 등)']]},
+     {k:'fix',label:'확정일자는 받나요?',opts:[['yes','받아요 (주민센터·온라인, 또는 전월세 신고로)'],['unk','어떻게 받는지 몰라요']]}],
+   judge(f){
+     return [{
+       day:['ok','입주하는 날 바로 전입신고를 해요. 대항력은 그 다음 날 0시부터 생겨요.'],
+       later:['unsure','전입신고가 늦어지면 그사이에 생긴 대출이나 다른 권리가 내 보증금보다 앞설 수 있어요. 입주하는 날 바로 하세요.'],
+       no:['bad','전입신고를 하지 않으면 대항력과 우선변제권을 얻지 못해요. 집주인이 전입신고를 막는다면 계약을 다시 생각해 보세요.']}[f.move],
+       {yes:['ok','확정일자를 받으면 경매·공매 때 순서에 따라 보증금을 받을 수 있어요(우선변제권).'],
+        unk:['unsure','확정일자는 주민센터나 인터넷등기소에서 받을 수 있고, 전월세 신고를 하면 함께 받은 것으로 처리돼요.']}[f.fix]];
+   },
+   risk:'"전입신고는 나중에 해 달라"는 요청은 보증금을 지키는 데 큰 위험이 돼요.',
+   acts:['잔금·입주하는 날 주민센터나 정부24에서 전입신고하기','같은 날 확정일자 받기 (전월세 신고를 하면 함께 처리돼요)','다음 날 등기부등본을 다시 떼어 새 권리가 생기지 않았는지 보기'],
+   laws:[['주택임대차보호법 제3조 제1항 (대항력)','집을 넘겨받고 주민등록(전입신고)을 마치면 그 다음 날부터 제3자에게도 임차권을 주장할 수 있어요.'],['주택임대차보호법 제3조의2 제2항 (우선변제권)','대항력을 갖추고 확정일자를 받으면 경매·공매 때 뒤 순서 권리자보다 먼저 보증금을 받을 수 있어요.']]},
+  {st:'fin',cat:'입주할 때',tag:'집 상태 기록',q:'입주할 때 집 상태를 사진·영상으로 남겼나요?',
+   why:'나갈 때 원래 있던 흠집이나 고장까지 내 책임으로 몰리면 보증금에서 빠질 수 있어요. 입주할 때 기록을 남겨 두면 다툼을 줄일 수 있어요.',
+   fields:[
+     {k:'rec',label:'집 상태를 기록했나요?',opts:[['shared','날짜가 나오게 찍고, 집주인·중개사에게도 보냈어요'],['self','찍어 뒀지만 보내지는 않았어요'],['none','아직 기록하지 않았어요']]}],
+   judge(f){
+     return [{
+       shared:['ok','입주 때 상태를 기록하고 상대방에게도 보냈어요.'],
+       self:['ok','사진을 찍어 뒀어요. 문자로 집주인에게도 보내 두면 더 확실해요.'],
+       none:['unsure','짐을 들이기 전에 벽·바닥·창틀·보일러 상태를 날짜가 나오게 찍어 두세요.']}[f.rec]];
+   },
+   risk:'처음부터 있던 하자를 기록해 두지 않으면 나갈 때 원상복구 비용을 두고 다툴 수 있어요.',
+   acts:['벽지·바닥·창틀·곰팡이·수압·보일러를 날짜가 나오게 찍기','고장 난 곳은 집주인에게 문자로 알리고 수리 일정 받기','사진은 계약서와 함께 보관하기'],
+   laws:[['민법 제615조·제654조 (원상회복)','임차인은 계약이 끝나면 빌린 집을 원래 상태로 돌려놓아야 해요. 그래서 처음 상태를 기록해 두는 게 중요해요.']]}
+];
+Q.forEach((q,i)=>{ q.id = 'q' + (i + 1); q.n = i + 1; });
+const BY_ID = Object.fromEntries(Q.map(q=>[q.id, q]));
+
+
+const TIPS = {
+  '구두로 들음':'구두 답변은 기록이 남지 않아요. 같은 내용을 문자로 다시 받아 두세요.',
+  '문자·메신저':'문자·메신저 답변은 캡처해서 계약서와 함께 보관하세요.',
+  '서류로 확인':'서류로 확인한 내용은 사본을 받아 보관하세요.'
+};
+const CK = '<svg width="12" height="12" viewBox="0 0 12 12"><path d="M2.5 6.2l2.3 2.3 4.7-5" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const STORE = 'jipkok-v2';
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ---------- 저장 (이 기기 브라우저 안에만) ---------- */
+let answers = {}, ctx = {};
+let stage = null;
+try { const d = JSON.parse(localStorage.getItem(STORE)) || {}; answers = d.answers || {}; ctx = d.ctx || {}; stage = d.stage || null; } catch(e) {}
+// 예전에 6번 안에서 고른 건물 종류를 함께 쓰는 칸으로 옮겨요
+if(ctx.bldg == null && answers.q6 && answers.q6.f && answers.q6.f.type){ ctx.bldg = answers.q6.f.type; delete answers.q6.f.type; }
+function save(){ try { localStorage.setItem(STORE, JSON.stringify({answers, ctx, stage})); } catch(e) {} }
+const ans = id => answers[id] || (answers[id] = {f:{}, memo:'', who:'공인중개사', how:'구두로 들음', done:false});
+const fv = id => (answers[id] && answers[id].f) || {};
+const visible = (q, f) => q.fields.filter(x=>!x.show || x.show(f));
+const val = (x, f) => x.shared ? ctx[x.k] : f[x.k];
+const ready = id => visible(BY_ID[id], fv(id)).every(x=>x.type === 'money' || val(x, fv(id)) != null);
+// 앞선 답 때문에 필요 없는 질문 (회색 '해당 없음', 확인한 개수에 셈)
+const na = id => id === 'q6' && ctx.bldg === 'single';
+const isDone = id => na(id) || (!!(answers[id] && answers[id].done) && ready(id));
+const naCount = (st = stage) => inStage(st).filter(q=>na(q.id)).length; // 확인한 개수에 들어간 "해당 없음" 질문 수
+const inStage = st => Q.filter(q=>q.st === st);
+const nextOpen = (skip, st = stage) => (Q.find(q=>q.st === st && q.id !== skip && !isDone(q.id)) || {}).id || null;
+
+function judge(id){
+  const r = BY_ID[id].judge(fv(id)).filter(Boolean);
+  const level = r.reduce((w,x)=>RANK[x[0]] > RANK[w] ? x[0] : w, 'ok');
+  return {level, reasons:r};
+}
+
+/* ---------- 계약 단계 ---------- */
+const STAGES = [
+  {id:'pre', name:'거래 전', sub:'집을 고르는 중 · 가계약 전', desc:'이 집, 계약해도 괜찮을지 서류와 돈 문제를 미리 확인해요.'},
+  {id:'mid', name:'거래 중', sub:'계약서 쓰는 날', desc:'계약하는 사람, 계약서 내용, 돈 보내는 곳을 확인해요.'},
+  {id:'fin', name:'최종 확인', sub:'잔금 · 입주하는 날', desc:'잔금 전에 달라진 게 없는지 보고, 내 보증금을 지킬 절차를 마쳐요.'}
+];
+const ST = Object.fromEntries(STAGES.map(x=>[x.id, x]));
+STAGES.forEach(x=>inStage(x.id).forEach((q,i)=>{ q.sn = i + 1; })); // 단계 안에서 몇 번째 질문인지
+if(!ST[stage]) stage = null;
+const stageDone = st => inStage(st).filter(q=>isDone(q.id)).length;
+
+/* ---------- 도움받을 곳 (무료·공공, 2026년 10월 각 기관 안내 기준) ---------- */
+const HELP = {
+  klac:{name:'대한법률구조공단', desc:'무료 법률상담 · 분쟁조정', tel:'132', web:'https://www.klac.or.kr'},
+  seoul:{name:'서울시 전월세종합지원센터', desc:'임대차·전세사기 상담 · 평일 9~17시', tel:'02-2133-1200', web:'https://housing.seoul.go.kr'},
+  hug:{name:'주택도시보증공사(HUG)', desc:'보증보험 가입 가능 여부', tel:'1566-9009', web:'https://www.khug.or.kr'},
+  gu:{name:'120 다산콜센터', desc:'중개사·중개보수 신고 안내', tel:'02-120'},
+  iros:{name:'인터넷등기소', desc:'등기부등본 떼기', web:'https://www.iros.go.kr'},
+  gov24:{name:'정부24', desc:'건축물대장 · 전입신고', web:'https://www.gov.kr'}
+};
+// 질문마다 '확인 필요'·'위험'일 때 보여 줄 곳
+const HELP_Q = {q1:['klac','seoul'], q2:['klac','seoul','iros'], q3:['klac','iros'], q4:['gu','seoul'], q5:['seoul','hug','iros'], q6:['seoul','klac'], q7:['hug','seoul'], q8:['seoul','klac'], q9:['gov24','seoul'], q10:['klac','seoul'], q11:['klac','seoul'], q12:['seoul','hug'], q13:['klac','seoul'], q14:['klac','seoul'], q15:['gu','seoul'], q16:['klac','seoul','iros'], q17:['gov24','seoul'], q18:['seoul','klac']};
+const helpRows = keys => keys.map(k=>{
+  const h = HELP[k];
+  return '<div class="hrow"><div class="ht"><b>' + h.name + '</b><span>' + h.desc + '</span></div><div class="hb">' +
+    (h.tel ? '<a class="hbtn call" href="tel:' + h.tel.replace(/-/g, '') + '">' + h.tel + '</a>' : '') +
+    (h.web ? '<a class="hbtn" href="' + h.web + '" target="_blank" rel="noopener">사이트</a>' : '') + '</div></div>';
+}).join('');
+const urgentBox = () => '<div class="urgent"><b>돈을 보냈는데 연락이 끊겼나요?</b>바로 신고하고, 송금 기록·계약서·문자는 지우지 마세요.<div class="hbtns"><a class="hbtn call" href="tel:112">경찰 112</a><a class="hbtn call" href="tel:132">법률구조공단 132</a></div></div>';
+
+const state = {sel: null};
+
+/* ---------- 시작: 단계 고르기 ---------- */
+function renderStart(){
+  $('stages').innerHTML = STAGES.map((x,i)=>{
+    const n = stageDone(x.id), t = inStage(x.id).length, all = n === t;
+    return '<button type="button" class="stage-card' + (all ? ' all' : '') + (x.id === stage ? ' last' : '') + '" data-stage="' + x.id + '">' +
+      '<span class="si" aria-hidden="true">' + (all ? '✓' : i + 1) + '</span><span><span class="st-t">' + x.name + '<span class="st-sub">' + x.sub + '</span></span>' +
+      '<span class="st-p">' + (all ? '모두 확인했어요' : n ? n + ' / ' + t + ' 확인 · 이어서 하기' : '질문 ' + t + '개') + '</span></span></button>';
+  }).join('');
+}
+$('stages').addEventListener('click', e=>{
+  const b = e.target.closest('[data-stage]'); if(!b) return;
+  setStage(b.dataset.stage);
+  go('p1');
+});
+function setStage(st){
+  stage = st;
+  save();
+  buildList();
+  renderList();
+}
+
+/* ---------- ① 질문 목록 (지금 단계만) ---------- */
+function buildList(){
+  if(!stage) return;
+  const qs = inStage(stage), secs = [...new Set(qs.map(q=>q.cat))];
+  $('list').innerHTML = secs.map(s=>
+    '<div class="grp" data-sec><div class="card-t">' + s + '<small></small></div><div class="card">' +
+    qs.filter(q=>q.cat === s).map(q=>
+      '<div class="item" data-id="' + q.id + '" role="button" tabindex="0"><span class="ck"></span><div class="txt"><p class="qt"></p><p class="tg"></p></div></div>'
+    ).join('') + '</div></div>'
+  ).join('');
+  document.querySelectorAll('.item').forEach(el=>{
+    const open = ()=>{ state.sel = el.dataset.id; renderAnswer(); go('p2'); };
+    el.addEventListener('click', open);
+    el.addEventListener('keydown', e=>{ if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); open(); } });
+  });
+  $('seg').innerHTML = STAGES.map(x=>'<button type="button" role="tab" data-st="' + x.id + '" aria-selected="' + (x.id === stage) + '"' + (x.id === stage ? ' class="on"' : '') + '>' + x.name + '</button>').join('');
+  const S = ST[stage];
+  $('l-sub').textContent = S.sub;
+  $('l-title').textContent = S.name;
+}
+$('seg').addEventListener('click', e=>{
+  const b = e.target.closest('[data-st]'); if(!b || b.dataset.st === stage) return;
+  setStage(b.dataset.st);
+  $('p1').querySelector('.scroll').scrollTop = 0;
+});
+
+function renderList(){
+  if(!stage) return;
+  const next = nextOpen();
+  document.querySelectorAll('.item').forEach(el=>{
+    const id = el.dataset.id, q = BY_ID[id], skip = na(id), d = isDone(id) && !skip, cur = id === next, lv = d ? judge(id).level : '';
+    const pre = !d && !skip && answers[id] && answers[id].pre;
+    el.className = 'item' + (d ? ' done lv-' + lv : '') + (skip ? ' na' : '') + (cur ? ' cur' : '');
+    el.querySelector('.ck').innerHTML = d ? CK : '';
+    el.querySelector('.tg').innerHTML = q.sn + '. ' + q.tag +
+      (d ? '<span class="lv ' + lv + '">' + LEVEL[lv][1] + '</span>' : '') +
+      (skip ? '<span class="lv skip">해당 없음</span>' : '') +
+      (pre ? '<span class="lv pre">답 채워짐</span>' : '') +
+      (cur ? '<span class="now">다음 질문</span>' : '');
+    el.querySelector('.qt').textContent = q.q;
+  });
+  document.querySelectorAll('[data-sec]').forEach(c=>{
+    const items = [...c.querySelectorAll('.item')];
+    const n = items.filter(i=>isDone(i.dataset.id)).length;
+    c.querySelector('.card-t small').textContent = n + '/' + items.length + (n === items.length ? ' 완료' : '');
+  });
+  const total = inStage(stage).length, n = stageDone(stage);
+  $('meterText').textContent = n + ' / ' + total;
+  const k = naCount();
+  $('meterNa').hidden = !k;
+  $('meterNa').textContent = '해당 없음 ' + k + '개 포함';
+  $('meterFill').style.width = (n / total * 100) + '%';
+  const btn = $('toAnswer'), after = STAGES[STAGES.findIndex(x=>x.id === stage) + 1];
+  btn.disabled = false;
+  if(next) btn.textContent = n ? '이어서 확인하기' : '첫 질문부터 시작하기';
+  else if(after) btn.textContent = '다음 단계 보기 · ' + after.name;
+  else { btn.textContent = '모든 단계를 확인했어요'; btn.disabled = true; }
+}
+
+/* ---------- ② 답 고르기 + 바로 보는 결과 ---------- */
+function renderFields(){
+  const q = BY_ID[state.sel], f = fv(state.sel);
+  $('a-fields').innerHTML = visible(q, f).map(x=>{
+    const hint = x.hint ? '<p class="fh">' + x.hint + '</p>' : '';
+    if(x.type === 'money'){
+      const v = x.shared ? ctx[x.k] : f[x.k];
+      return '<div class="field"><label class="lbl" for="m-' + x.k + '">' + x.label + ' <span class="opt-tag">선택</span></label>' +
+        '<div class="money"><input id="m-' + x.k + '" data-k="' + x.k + '" data-shared="' + (x.shared ? 1 : '') + '" type="text" inputmode="numeric" autocomplete="off" placeholder="숫자만 입력" value="' + (v == null ? '' : v) + '"><span>만 원</span></div>' +
+        '<p class="money-read">' + (v == null ? '' : won(v)) + '</p>' + hint + '</div>';
+    }
+    return '<div class="field"><p class="lbl">' + x.label + '</p><div class="opts" data-k="' + x.k + '" data-shared="' + (x.shared ? 1 : '') + '">' +
+      x.opts.map(o=>'<button type="button" class="opt' + (val(x, f) === o[0] ? ' on' : '') + '" data-v="' + o[0] + '" aria-pressed="' + (val(x, f) === o[0]) + '">' + o[1] + '</button>').join('') +
+      '</div>' + hint + '</div>';
+  }).join('');
+}
+
+function renderAnswer(){
+  const q = BY_ID[state.sel], a = ans(state.sel);
+  $('a-stage').textContent = ST[q.st].name;
+  $('a-num').textContent = '질문 ' + q.sn + ' / ' + inStage(q.st).length;
+  $('a-cat').textContent = q.cat + ' · ' + q.tag;
+  $('a-q').textContent = q.q;
+  $('a-why').textContent = q.why;
+  $('a-ans').value = a.memo;
+  $('a-cnt').textContent = a.memo.length + ' / 300';
+  $('a-more').open = !!a.memo.trim();
+  document.querySelectorAll('#p2 .chips').forEach(g=>{
+    g.querySelectorAll('.chip').forEach(c=>{
+      const on = c.dataset.v === a[g.dataset.group];
+      c.classList.toggle('on', on);
+      c.setAttribute('aria-pressed', on);
+    });
+  });
+  renderFields();
+  renderLive();
+}
+
+let lawsOpen = false;
+function renderLive(){
+  const id = state.sel, q = BY_ID[id], ok = ready(id), nx = nextOpen(id, q.st);
+  const btn = $('toNext');
+  btn.disabled = !ok;
+  btn.textContent = !ok ? '위 질문에 모두 답해 주세요' : nx ? '확인 완료 · 다음 질문' : '확인 완료 · 이 단계 마무리';
+  if(!ok){ $('live').innerHTML = '<div class="card pending">답을 고르면 판단 결과가 여기에 바로 나와요.</div>'; return; }
+  const j = judge(id), a = ans(id);
+  let h = '<div class="card-t">판단 결과</div><div class="card verdict live" data-lv="' + j.level + '"><div class="vrow"><div class="vi" aria-hidden="true"></div><div><span class="badge ' + j.level + '">' + LEVEL[j.level][0] + '</span><h3>' + HEAD[j.level] + '</h3></div></div>' +
+    '<ul class="reasons">' + j.reasons.map(r=>'<li class="' + r[0] + '">' + esc(r[1]) + '</li>').join('') + '</ul></div>';
+  if(j.level !== 'ok') h += '<div class="grp"><div class="card-t">' + (j.level === 'bad' ? '넘어가기 전에 상담받아 보세요' : '헷갈리면 무료로 물어보세요') + '</div><div class="card help">' + helpRows(HELP_Q[id] || ['klac','seoul']) + '</div></div>';
+  h += '<div class="grp"><div class="card-t">다음에 할 일</div><div class="card">' + q.acts.map((t,i)=>'<div class="act"><span class="num">' + (i + 1) + '</span><span>' + t + '</span></div>').join('') + '</div></div>';
+  h += '<details class="grp" id="lawsD"' + (lawsOpen ? ' open' : '') + '><summary class="card-t">주의사항과 관련 법률</summary>' +
+    '<div class="card risk"><span>' + esc(q.risk) + '</span><p class="tip">' + esc(TIPS[a.how]) + '</p></div>' +
+    '<div class="card" style="margin-top:12px">' + q.laws.map(l=>'<div class="law"><b>' + l[0] + '</b><span>' + l[1] + '</span></div>').join('') + '</div></details>';
+  $('live').innerHTML = h;
+}
+$('live').addEventListener('toggle', e=>{ if(e.target.id === 'lawsD') lawsOpen = e.target.open; }, true);
+
+$('a-fields').addEventListener('click', e=>{
+  const b = e.target.closest('.opt'); if(!b) return;
+  const was = ready(state.sel);
+  if(b.parentNode.dataset.shared) ctx[b.parentNode.dataset.k] = b.dataset.v; else ans(state.sel).f[b.parentNode.dataset.k] = b.dataset.v;
+  save();
+  const sc = $('p2').querySelector('.scroll'), y = sc.scrollTop;
+  renderFields();
+  renderLive();
+  sc.scrollTop = y;
+  // 마지막 답을 고르면 아래 판단 결과로 내려가요
+  if(!was && ready(state.sel)) $('live').scrollIntoView({behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block:'start'});
+});
+
+$('a-fields').addEventListener('input', e=>{
+  const el = e.target; if(!el.dataset.k) return;
+  const clean = el.value.replace(/[^0-9]/g, '').slice(0, 7);
+  if(clean !== el.value) el.value = clean;
+  const v = clean === '' ? null : +clean;
+  if(el.dataset.shared) ctx[el.dataset.k] = v; else ans(state.sel).f[el.dataset.k] = v;
+  el.closest('.field').querySelector('.money-read').textContent = v == null ? '' : won(v);
+  save();
+  renderLive();
+});
+
+$('a-ans').addEventListener('input', e=>{
+  ans(state.sel).memo = e.target.value;
+  $('a-cnt').textContent = e.target.value.length + ' / 300';
+  save();
+});
+
+document.querySelectorAll('#p2 .chips').forEach(g=>{
+  g.addEventListener('click', e=>{
+    const c = e.target.closest('.chip'); if(!c) return;
+    ans(state.sel)[g.dataset.group] = c.dataset.v;
+    save();
+    g.querySelectorAll('.chip').forEach(x=>{ x.classList.toggle('on', x === c); x.setAttribute('aria-pressed', x === c); });
+    renderLive();
+  });
+});
+
+// 메모에 적은 말에서 이 질문의 답 찾기
+$('a-fill').addEventListener('click', ()=>{
+  stopMic();
+  const q = BY_ID[state.sel];
+  const sug = parseText($('a-ans').value).filter(x=>x.q === state.sel || (x.q === 'ctx' && q.fields.some(f=>f.shared && f.k === x.k)));
+  if(!sug.length){ toast('메모에서 이 질문의 답을 찾지 못했어요.'); return; }
+  applySug(sug);
+  renderFields();
+  renderLive();
+  toast(sug.length + '개 답을 골랐어요. 맞는지 확인해 주세요.');
+});
+
+/* ---------- 화면 전환 (휴대폰 뒤로 가기와 연결) ---------- */
+const VIEWS = ['p0','p1','p2'];
+let depth = 0;
+
+// 화면이 넘어가는 동안(0.4초) 누름을 받지 않아요. 두 번 빨리 눌러도 다음 화면이 눌리지 않게요.
+let busyUntil = 0;
+['click','keydown'].forEach(t=>document.addEventListener(t, e=>{
+  if(Date.now() < busyUntil && (t === 'click' || e.key === 'Enter' || e.key === ' ')){ e.preventDefault(); e.stopPropagation(); }
+}, true));
+
+function show(id){
+  busyUntil = Date.now() + 400;
+  stopMic();
+  const k = VIEWS.indexOf(id);
+  VIEWS.forEach((v,i)=>{
+    const el = $(v);
+    el.classList.toggle('on', i === k);
+    el.classList.toggle('past', i < k);
+    el.setAttribute('aria-hidden', i !== k);
+  });
+  $(id).querySelector('.scroll').scrollTop = 0;
+}
+
+function go(id){
+  depth = VIEWS.indexOf(id);
+  history.pushState({v:id, d:depth}, '');
+  show(id);
+}
+
+window.addEventListener('popstate', e=>{
+  closeSheet();
+  let v = (e.state && e.state.v) || 'p0';
+  if(v !== 'p0' && !stage) v = 'p0';
+  if(v === 'p2' && !state.sel) v = 'p1';
+  depth = VIEWS.indexOf(v);
+  if(v === 'p0') renderStart();
+  if(v === 'p1') renderList();
+  if(v === 'p2') renderAnswer();
+  show(v);
+});
+
+document.querySelectorAll('[data-back]').forEach(b=>b.addEventListener('click', ()=>history.back()));
+
+function toast(msg){
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._h);
+  t._h = setTimeout(()=>t.classList.remove('show'), 2400);
+}
+
+$('toAnswer').addEventListener('click', ()=>{
+  const next = nextOpen();
+  if(!next){ // 이 단계를 다 봤으면 다음 단계로
+    const after = STAGES[STAGES.findIndex(x=>x.id === stage) + 1];
+    if(after){ setStage(after.id); $('p1').querySelector('.scroll').scrollTop = 0; toast(after.name + ' 단계로 넘어왔어요.'); }
+    return;
+  }
+  state.sel = next;
+  renderAnswer();
+  go('p2');
+});
+
+function finish(){
+  const a = ans(state.sel);
+  a.done = true;
+  delete a.pre;
+  save();
+  return BY_ID[state.sel].tag;
+}
+
+// 다음 질문으로 (같은 화면에서 질문만 바꿔요)
+$('toNext').addEventListener('click', ()=>{
+  if(!ready(state.sel)) return;
+  const tag = finish(), next = nextOpen(state.sel);
+  if(next){
+    state.sel = next;
+    renderAnswer();
+    $('p2').querySelector('.scroll').scrollTop = 0;
+    toast('"' + tag + '" 확인 완료! 다음 질문이에요.');
+    return;
+  }
+  renderList();
+  history.back();
+  const after = STAGES[STAGES.findIndex(x=>x.id === stage) + 1];
+  toast(ST[stage].name + ' 단계를 모두 확인했어요.' + (after ? ' 다음은 ' + after.name + '이에요.' : ' 수고했어요!'));
+});
+
+// 목록으로 (답을 다 골랐으면 확인한 것으로 저장)
+$('toList').addEventListener('click', ()=>{
+  if(ready(state.sel)) finish();
+  renderList();
+  history.back();
+});
+
+function clearAll(){
+  answers = {}; ctx = {};
+  save();
+  renderList();
+  renderStart();
+  toast('모든 답변을 지웠어요.');
+}
+
+// 지우기는 한 번 더 눌러야 돼요 (실수로 지우지 않게)
+$('reset').addEventListener('click', e=>{
+  const btn = e.currentTarget;
+  if(!btn._armed){
+    btn._armed = true;
+    btn.textContent = '한 번 더 누르면 모든 답변을 지워요';
+    clearTimeout(btn._h);
+    btn._h = setTimeout(()=>{ btn._armed = false; btn.textContent = '모든 단계 답변 지우기'; }, 4000);
+    return;
+  }
+  clearTimeout(btn._h);
+  btn._armed = false;
+  btn.textContent = '모든 단계 답변 지우기';
+  clearAll();
+});
+
+/* ---------- 아래에서 올라오는 창 ---------- */
+function openSheet(title, html){
+  $('sheetT').textContent = title;
+  $('sheetBody').innerHTML = html;
+  $('sheet').hidden = false;
+  $('sheetBody').scrollTop = 0;
+  $('sheet').querySelector('.x').focus();
+}
+function closeSheet(){ stopMic(); $('sheet').hidden = true; }
+
+function openHelp(){
+  openSheet('도움받을 곳', urgentBox() +
+    '<p class="sec-t">무료 상담<small>공공기관</small></p><div class="card help">' + helpRows(['klac','seoul','hug','gu']) + '</div>' +
+    '<p class="sec-t">서류 떼기</p><div class="card help">' + helpRows(['iros','gov24']) + '</div>' +
+    '<p class="note">집콕체크는 위 기관과 제휴하지 않았어요. 연락처는 2026년 10월 기준이에요.</p>');
+}
+
+function openQuick(){
+  openSheet('들은 말로 빠르게 채우기',
+    '<p class="sh-d">들은 말이나 문자를 붙여 넣거나 🎤로 말해 주세요.</p>' +
+    '<div class="answer"><textarea id="qText" rows="5" maxlength="1000" aria-label="들은 말" placeholder="예) 보증금 1000에 월세 50이고, 근저당은 없대요. 다가구 건물이고 보증보험 가입 가능하대요. 복비는 40만 원이요."></textarea></div>' +
+    '<div class="memo-tools"><button type="button" class="mic" data-mic="qText" data-label="🎤 말로 입력">🎤 말로 입력</button></div>' +
+    '<p class="fh mic-note">이름·주민번호·계좌번호는 빼 주세요.</p>' +
+    '<button type="button" class="btn" id="qRun">내용에서 답 찾기</button><div id="qOut"></div>');
+}
+
+let lastSug = [];
+function runQuick(){
+  const text = $('qText').value.trim();
+  if(!text){ toast('들은 말을 먼저 적거나 말해 주세요.'); return; }
+  stopMic();
+  lastSug = parseText(text);
+  let h = URGENT.test(text) ? '<div style="margin-top:16px">' + urgentBox() + '</div>' : '';
+  if(!lastSug.length) h += '<p class="sh-empty">찾은 답이 없어요. "근저당은 없대요"처럼 질문에 나온 말을 넣어 다시 해 보거나, 체크리스트에서 직접 골라 주세요.</p>';
+  else h += '<p class="sec-t">찾은 답 ' + lastSug.length + '개<small>맞는 것만 남겨 주세요</small></p><div class="card">' +
+    lastSug.map((x,i)=>'<label class="sug"><input type="checkbox" checked data-i="' + i + '"><span><span class="sw">' + esc(x.where) + '</span><span class="sv">' + esc(x.show) + '</span>' +
+      (x.was ? '<span class="was">지금 답 "' + esc(x.was) + '"에서 바뀌어요</span>' : '') + '<q>' + esc(x.quote) + '</q></span></label>').join('') +
+    '</div><button type="button" class="btn" id="qApply">고른 답 채우기</button><p class="fh">채운 답은 질문을 열어 한 번 더 확인해 주세요. 판단 결과도 그때 보여 드려요.</p>';
+  $('qOut').innerHTML = h;
+  $('qOut').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+function applyQuick(){
+  const pick = [...document.querySelectorAll('#qOut .sug input:checked')].map(c=>lastSug[+c.dataset.i]);
+  if(!pick.length){ toast('채울 답을 하나 이상 골라 주세요.'); return; }
+  applySug(pick);
+  closeSheet();
+  const firstQ = pick.find(x=>x.q !== 'ctx');
+  if(depth === 0){ setStage(firstQ ? BY_ID[firstQ.q].st : stage || 'pre'); go('p1'); }
+  else if(depth === 1){ buildList(); renderList(); }
+  else renderAnswer();
+  renderStart();
+  toast(pick.length + '개 답을 채웠어요. 질문을 열어 확인해 주세요.');
+}
+
+function applySug(list){
+  list.forEach(x=>{
+    if(x.q === 'ctx'){ ctx[x.k] = x.v; return; }
+    const a = ans(x.q);
+    a.f[x.k] = x.v;
+    if(!a.done) a.pre = true;
+  });
+  save();
+}
+
+document.addEventListener('click', e=>{
+  const t = e.target;
+  if(t.closest('[data-close]')) closeSheet();
+  else if(t.closest('[data-help]')) openHelp();
+  else if(t.closest('[data-quick]')) openQuick();
+  else if(t.closest('#qRun')) runQuick();
+  else if(t.closest('#qApply')) applyQuick();
+  else if(t.closest('[data-mic]')) toggleMic(t.closest('[data-mic]'));
+});
+document.addEventListener('keydown', e=>{ if(e.key === 'Escape' && !$('sheet').hidden) closeSheet(); });
+
+/* ---------- 음성 입력 (브라우저 음성 인식, 한국어) ---------- */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+if(!SR) document.body.classList.add('no-sr'); // 지원하지 않는 브라우저는 마이크 버튼을 숨겨요
+let rec = null;
+function stopMic(){ if(rec) rec.stop(); }
+function toggleMic(btn){
+  if(rec){ rec.stop(); return; }
+  const ta = $(btn.dataset.mic);
+  const base = ta.value.trim() ? ta.value.replace(/\s*$/, ' ') : '';
+  let said = '';
+  rec = new SR();
+  rec.lang = 'ko-KR';
+  rec.interimResults = true;
+  rec.continuous = true;
+  rec.onresult = e=>{
+    let now = '';
+    for(let i = e.resultIndex; i < e.results.length; i++){
+      if(e.results[i].isFinal) said += e.results[i][0].transcript + ' ';
+      else now += e.results[i][0].transcript;
+    }
+    ta.value = (base + said + now).slice(0, ta.maxLength);
+    ta.dispatchEvent(new Event('input', {bubbles:true}));
+  };
+  rec.onerror = e=>{
+    if(e.error === 'not-allowed' || e.error === 'service-not-allowed') toast('마이크를 쓸 수 없어요. 브라우저에서 마이크 권한을 허용해 주세요.');
+    else if(e.error === 'no-speech') toast('말소리가 들리지 않았어요. 다시 눌러 말해 주세요.');
+  };
+  rec.onend = ()=>{ btn.classList.remove('rec'); btn.textContent = btn.dataset.label; rec = null; };
+  try { rec.start(); btn.classList.add('rec'); btn.textContent = '■ 그만 듣기'; }
+  catch(err){ rec = null; toast('음성 인식을 시작하지 못했어요.'); }
+}
+
+/* ---------- 들은 말에서 답 찾기 (단어 규칙, 서버 없이 이 기기에서만) ----------
+   [질문, 칸, 값, 찾을 말]  값이 '$'면 뒤에 오는 금액(만 원)을 읽어요.
+   ~ 는 "같은 문장 안에서 16글자 이내"라는 뜻이에요. 같은 칸은 먼저 맞은 규칙만 써요(부정 표현을 앞에 둬요). */
+const RULES = [
+  ['q1','who','agent','대리인|위임장|(아들|딸|아버지|어머니|부모님?|가족|남편|아내|관리인|조카)~(나와|나온|온대|온다|대신)'],
+  ['q1','who','self','(집주인|임대인)~(직접|본인)~(나와|나온|온대|온다|계약)'],
+  ['q2','match','diff','(소유자|명의|이름|임대인)~(다르|달라|틀려|틀리|안 ?맞)'],
+  ['q2','match','same','(소유자|명의|이름)~(같|일치|맞아)'],
+  ['q2','reg','me','등기부~(직접|뗐|떼어|떼 ?봤|발급)'],
+  ['q2','reg','shown','등기부~(보여|봤)'],
+  ['ctx','bldg','multi','다가구'],
+  ['ctx','bldg','single','다세대|빌라|아파트|오피스텔'],
+  ['q3','own','one','(소유자|집주인)~(한 ?명|1명|단독)'],
+  ['q3','own','all','공동 ?명의~(모두|다 ?같이|전부|다 ?서명)'],
+  ['q4','reg','fail','(중개|부동산)~(등록|조회)~(안 ?나|없)'],
+  ['q4','reg','checked','(국가공간정보|브이월드|중개사무소 ?등록)~(조회|확인)'],
+  ['q4','person','assistant','중개보조원|보조원|(실장|직원)~(상담|안내|보여)'],
+  ['q4','ins','no','공제 ?증서~(못|안|없)'],
+  ['q4','ins','yes','공제 ?증서~(봤|확인|받)'],
+  ['q5','has','none','(근저당|융자|대출)~(없|0원|깨끗)'],
+  ['q5','has','yes','(근저당|융자|대출)~(있|잡혀|\\d)'],
+  ['q5','mort','$','(채권최고액|근저당|융자|대출)'],
+  ['ctx','price','$','(매매 ?시세|매매가|시세|집값|건물 ?가격)'],
+  ['ctx','deposit','$','보증금'],
+  ['ctx','rent','$','월세|차임'],
+  ['q6','senior','$','(선순위|먼저 사는|앞 세입자|다른 세입자)~보증금'],
+  ['q7','ins','no','(보증 ?보험|반환 ?보증|허그|HUG)~(안 ?돼|안 ?된|불가|못)'],
+  ['q7','ins','ok','(보증 ?보험|반환 ?보증|허그|HUG)~(가능|돼|된대|된다|됩니다|가입 ?할 ?수|가입했)'],
+  ['q8','tax','owed','(세금|국세|지방세)~(밀|체납|미납)'],
+  ['q8','tax','refuse','납세 ?증명~(거절|안 ?보여|못 ?보여|안 ?준)'],
+  ['q8','tax','cert','납세 ?증명~(확인|봤|받)'],
+  ['q8','tax','told','(세금|체납)~(없|완납|다 ?냈)'],
+  ['q9','use','retail','(건축물 ?대장|용도)~(근린|근생|상가)'],
+  ['q9','use','officetel','(건축물 ?대장|용도)~오피스텔'],
+  ['q9','use','house','(건축물 ?대장|용도)~(주택|다가구|다세대|아파트)'],
+  ['q9','viol','no','위반 ?건축물~(없|아니)'],
+  ['q9','viol','yes','위반 ?건축물|불법 ?(건축|증축|개조)|방 ?쪼개기'],
+  ['q10','when','next','(다음|새|후속) ?세입자~(들어오|들어와|구해|구하|나타나|오면)'],
+  ['q10','when','end','(만기|끝나는 ?날|계약 ?끝나|나갈 ?때)~(바로|즉시|당일)'],
+  ['q11','cond','no','(중도|중간)~(못|안 ?돼|불가)'],
+  ['q11','cond','vague','그때 ?봐서|상황 ?봐서|나중에 ?(얘기|이야기)'],
+  ['q11','cond','clear','\\d+ ?(개월|달)~(전|미리)~(나갈|해지|빼)'],
+  ['q12','cmp','cheap','(주변|시세)~(싸|저렴)'],
+  ['q12','cmp','high','(주변|시세)~(비싸|높)'],
+  ['q12','cmp','same','(주변|시세)~비슷'],
+  ['q13','acct','cash','현금'],
+  ['q13','acct','other','(중개사|대리인|아들|딸|가족|관리인|부동산|사무소|회사|실장)~(계좌|통장)'],
+  ['q13','acct','owner','(집주인|임대인|소유자)~(계좌|통장)'],
+  ['q14','clause','refuse','특약~(못|안 ?넣|안 ?된|안 ?돼|거절|싫)'],
+  ['q14','clause','yes','특약~(넣|적|써)'],
+  ['q15','fee','$','중개 ?보수|복비|중개 ?수수료|수수료'],
+  ['q15','rcpt','no','영수증~(안|못|없)'],
+  ['q15','rcpt','yes','영수증~(준|발급|받|끊어)'],
+  ['q17','move','no','전입 ?신고~(하지 ?말|못 ?하게|안 ?된|안 ?돼)'],
+  ['q17','move','later','전입 ?신고~(나중|며칠|미뤄|늦게)']
+].map(r=>[r[0], r[1], r[2], new RegExp(r[3].replace(/~/g, '[^.,!?\\n]{0,16}?'), 'i')]);
+const URGENT = /(이미|벌써)[^.!?\n]{0,20}?(보냈|입금|송금|줬|냈)|연락[^.!?\n]{0,10}?(안 ?돼|안 ?되|두절|끊|안 ?받)|잠적|사기[^.!?\n]{0,6}?(당|같|의심)/;
+
+// "1억 2천", "5천만 원", "1000에", "40만 원" → 만 원 단위 숫자
+function parseMan(t){
+  t = t.replace(/^[\s:은는이가을를도요]*(약|대략)?\s*/, '');
+  const m = t.match(/^(\d[\d,]*(?:\.\d+)?)?\s*(억)?\s*(\d[\d,]*)?\s*(천만|천|백만|백|만)?\s*(원)?/);
+  if(!m || !(m[1] || m[4])) return null;
+  const n = x => x ? +x.replace(/,/g, '') : null;
+  const unit = {'천만':1000, '천':1000, '백만':100, '백':100, '만':1}[m[4]];
+  let v;
+  if(m[2]) v = (n(m[1]) || 1) * 10000 + (m[3] ? n(m[3]) * (unit || 1) : 0);
+  else {
+    const a = n(m[1]) == null ? 1 : n(m[1]);
+    v = unit ? a * unit : (m[5] && a >= 10000) ? a / 10000 : a; // 단위가 없으면 만 원으로 봐요
+  }
+  return v > 0 && v < 10000000 ? Math.round(v) : null;
+}
+
+function fieldOf(q, k){
+  if(q === 'ctx'){ for(const x of Q){ const f = x.fields.find(f=>f.shared && f.k === k); if(f) return f; } return null; }
+  return BY_ID[q].fields.find(f=>f.k === k);
+}
+const optText = (f, v) => f.type === 'money' ? won(v) : ((f.opts.find(o=>o[0] === v) || [])[1] || '');
+
+function parseText(text){
+  const parts = text.replace(/([고요데])\s+/g, '$1\n').split(/[.!?\n,]+/).map(x=>x.trim()).filter(Boolean);
+  const out = new Map();
+  for(const [q, k, v, re] of RULES){
+    const key = q + '.' + k;
+    if(out.has(key)) continue;
+    for(const c of parts){
+      let val = null;
+      if(v === '$'){ // 같은 말이 여러 번 나오면 금액이 붙은 곳을 찾아요
+        for(const m of c.matchAll(new RegExp(re.source, 'gi'))){
+          if(k === 'deposit' && /(선순위|먼저|앞|다른)\s*(사는\s*)?(세입자\S*\s*)?$/.test(c.slice(0, m.index))) continue;
+          val = parseMan(c.slice(m.index + m[0].length));
+          if(val != null) break;
+        }
+      } else if(re.test(c)) val = v;
+      if(val == null) continue;
+      out.set(key, {q, k, v:val, quote:c});
+      break;
+    }
+  }
+  // 근저당 금액이 있으면 '있어요', 근저당이 없으면 금액은 버려요
+  if(out.has('q5.mort')){
+    if(!out.has('q5.has')) out.set('q5.has', {q:'q5', k:'has', v:'yes', quote:out.get('q5.mort').quote});
+    if(out.get('q5.has').v !== 'yes') out.delete('q5.mort');
+  }
+  const has = out.get('q5.has');
+  if(has) out.set('q5.src', {q:'q5', k:'src', v:/등기부|을구/.test(text) ? 'reg' : 'told', quote:has.quote});
+  if(out.has('q6.senior')) out.set('q6.src', {q:'q6', k:'src', v:'told', quote:out.get('q6.senior').quote});
+  return [...out.values()].map(x=>{
+    const f = fieldOf(x.q, x.k); if(!f) return null;
+    const qq = x.q === 'ctx' ? null : BY_ID[x.q];
+    const cur = x.q === 'ctx' ? ctx[x.k] : fv(x.q)[x.k];
+    return Object.assign(x, {
+      where: qq ? ST[qq.st].name + ' · ' + qq.tag : '공통 정보',
+      show: f.type === 'money' ? f.label + ' ' + won(x.v) : f.label + ' → ' + optText(f, x.v),
+      was: cur == null || cur === x.v ? '' : optText(f, cur),
+      order: qq ? Q.indexOf(qq) + 1 : 0
+    });
+  }).filter(Boolean).sort((a,b)=>a.order - b.order);
+}
+
+/* ---------- 처음 열 때 ---------- */
+history.replaceState({v:'p0', d:0}, '');
+{ const f = document.querySelector('footer'); $('footM').innerHTML = f.firstChild.textContent + '<br>' + f.querySelector('small').textContent; }
+buildList();
+renderList();
+renderStart();
+show('p0');
+</script>
+</body>
+</html>
