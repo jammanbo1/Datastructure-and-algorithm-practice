@@ -11,9 +11,9 @@ API 키는 서버의 환경 변수(GEMINI_API_KEY)에만 두고, 코드나 HTML�
  
 환경 변수:
   GEMINI_API_KEY   (필수) Google AI Studio에서 받은 키
-  GEMINI_MODEL     (선택) 기본값 gemini-flash-latest
+  GEMINI_MODEL     (선택) 기본값 gemini-3.5-flash-lite (무료 하루 500번)
   GEMINI_FALLBACKS (선택) 위 모델이 붐비면(503) 차례로 써 볼 모델, 쉼표로 여러 개.
-                   기본값 gemini-flash-lite-latest,gemini-2.5-flash
+                   기본값 gemini-flash-lite-latest,gemini-2.5-flash-lite
   ALLOWED_ORIGINS  (선택) 앱 주소, 쉼표로 여러 개. 예: https://내아이디.github.io  (기본값 * = 모두 허용)
 """
  
@@ -29,8 +29,8 @@ from google import genai
 from google.genai import errors, types
 from pydantic import BaseModel, Field
  
-MODEL = os.environ.get("GEMINI_MODEL", "gemini-flash-latest")
-FALLBACKS = [m.strip() for m in os.environ.get("GEMINI_FALLBACKS", "gemini-flash-lite-latest,gemini-2.5-flash").split(",") if m.strip()]
+MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash-lite")
+FALLBACKS = [m.strip() for m in os.environ.get("GEMINI_FALLBACKS", "gemini-flash-lite-latest,gemini-2.5-flash-lite").split(",") if m.strip()]
 MODELS = list(dict.fromkeys([MODEL, *FALLBACKS]))  # 순서 유지, 중복 제거
 ORIGINS = [o.strip() for o in os.environ.get("ALLOWED_ORIGINS", "*").split(",") if o.strip()]
 log = logging.getLogger("jipkok")
