@@ -1,0 +1,6 @@
+# 키·비밀 값은 절대 올리지 않아요
+.env
+*.env
+__pycache__/
+.venv/
+venv/
