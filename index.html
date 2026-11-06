@@ -196,7 +196,7 @@
   .btn.plain:active{background:var(--primary-soft)}
   #p2 .scroll{padding-bottom:168px}
 
-  .toast{position:absolute;left:50%;bottom:116px;z-index:6;width:max-content;max-width:calc(100% - 48px);transform:translate(-50%,8px);background:rgba(11,36,71,.92);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);color:#fff;font-size:14.5px;font-weight:600;border-radius:16px;padding:11px 18px;text-align:center;opacity:0;transition:opacity .25s,transform .25s;pointer-events:none}
+  .toast{position:absolute;left:50%;bottom:116px;z-index:9;width:max-content;max-width:calc(100% - 48px);transform:translate(-50%,8px);background:rgba(11,36,71,.92);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);color:#fff;font-size:14.5px;font-weight:600;border-radius:16px;padding:11px 18px;text-align:center;opacity:0;transition:opacity .25s,transform .25s;pointer-events:none}
   /* 시작 화면: 저장된 기록 안내 */
   .saved{padding:16px 18px;text-align:center}
   .saved[hidden]{display:none}
@@ -263,6 +263,7 @@
   .sum-row .badge{font-size:12.5px;padding:2px 9px}
   .sum-acts{display:grid;gap:10px;margin-top:18px}
   .btn.sub{background:var(--primary-soft);color:var(--primary)}
+  .btn.copied{background:var(--ok)}
   .quick b{display:block;font-size:16.5px;font-weight:800;color:var(--navy)}
   .quick .qtx span{display:block;font-size:14.5px;color:var(--label2);line-height:1.5;margin-top:2px}
 
@@ -1754,15 +1755,23 @@ function summaryText(){
   lines.push('', '※ 집콕체크의 판단은 참고용이며 법률 자문이 아니에요.');
   return lines.join('\n');
 }
+function copyDone(ok){
+  const b = $('sumCopy'); if(!b) return;
+  b.textContent = ok ? '✓ 클립보드에 복사했어요' : '복사하지 못했어요 · 다시 누르기';
+  b.classList.toggle('copied', ok);
+  clearTimeout(b._h);
+  b._h = setTimeout(()=>{ b.textContent = '상담할 때 보여 줄 요약 복사'; b.classList.remove('copied'); }, 3000);
+}
 async function copySummary(){
   const t = summaryText();
-  try { await navigator.clipboard.writeText(t); toast('요약을 복사했어요. 상담할 때 붙여 넣어 보여 주세요.'); }
+  try { await navigator.clipboard.writeText(t); copyDone(true); toast('요약을 클립보드에 복사했어요. 상담할 때 붙여 넣어 보여 주세요.'); }
   catch(e){
     const ta = document.createElement('textarea'); ta.value = t; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0';
     document.body.appendChild(ta); ta.select();
     let ok = false; try { ok = document.execCommand('copy'); } catch(_) {}
     ta.remove();
-    toast(ok ? '요약을 복사했어요.' : '복사하지 못했어요. 화면을 캡처해 보여 주세요.');
+    copyDone(ok);
+    toast(ok ? '요약을 클립보드에 복사했어요.' : '복사하지 못했어요. 화면을 캡처해 보여 주세요.');
   }
 }
 function goQuestion(id){
