@@ -533,6 +533,15 @@
   .mkt-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin:0 2px 10px}
   .mkt-h b{font-size:14.5px;font-weight:800;color:var(--label)}
   .mkt-h small{font-size:12px;font-weight:600;color:var(--label3)}
+  .out-card{margin:10px 16px 0;padding:14px;border-radius:16px;border:1px solid var(--sep);background:var(--card)}
+  .out-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin:0 2px 10px}
+  .out-h b{font-size:14.5px;font-weight:800;color:var(--label)}
+  .out-h small{font-size:12px;font-weight:600;color:var(--label3)}
+  .out-links{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .out-links a{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:11px 12px;border-radius:12px;background:var(--bg);color:var(--label);font-size:14px;font-weight:700;text-decoration:none}
+  .out-links a span{font-size:12px;font-weight:600;color:var(--label3)}
+  .out-links a:active{background:var(--press)}
+  .out-note{margin:10px 2px 0;font-size:12.5px;line-height:1.5;color:var(--label2)}
   .mkt{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
   .mkt div{background:rgba(255,255,255,.8);border-radius:12px;padding:10px 4px;text-align:center}
   .mkt span{display:block;font-size:11.5px;font-weight:600;color:var(--label3)}
@@ -631,6 +640,17 @@
           <div class="mkt-card">
             <div class="mkt-h"><b id="mktT">시세</b><small id="mktN"></small></div>
             <div class="mkt" id="mkt"></div>
+          </div>
+          <!-- 지금 나와 있는 매물은 바깥 사이트에서 봐요 (공개 API가 없어서 링크로만 연결) -->
+          <div class="out-card">
+            <div class="out-h"><b>지금 나와 있는 매물 보기</b><small>바깥 사이트로 이동</small></div>
+            <div class="out-links">
+              <a href="https://new.land.naver.com/rooms?ms=37.5536,126.9390,16" target="_blank" rel="noopener">네이버 원룸·투룸<span>↗</span></a>
+              <a href="https://new.land.naver.com/offices?ms=37.5536,126.9390,16" target="_blank" rel="noopener">네이버 오피스텔<span>↗</span></a>
+              <a href="https://www.zigbang.com/home/oneroom/map" target="_blank" rel="noopener">직방<span>↗</span></a>
+              <a href="https://www.dabangapp.com/map/onetwo" target="_blank" rel="noopener">다방<span>↗</span></a>
+            </div>
+            <p class="out-note">마음에 드는 집을 찾으면 위 시세와 비교하고, <b>계약 체크</b>에서 확인할 질문을 챙겨 보세요. 집콕체크는 이 사이트들과 제휴하지 않았어요.</p>
           </div>
           <div class="gap"></div>
           <div class="fbar"><div class="fchips" id="fChips" role="group" aria-label="거래 종류와 동네"></div></div>
