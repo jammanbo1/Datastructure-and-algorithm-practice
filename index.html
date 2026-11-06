@@ -264,6 +264,24 @@
   .sum-acts{display:grid;gap:10px;margin-top:18px}
   .btn.sub{background:var(--primary-soft);color:var(--primary)}
   .btn.copied{background:var(--ok)}
+  .v-main{margin-top:8px;font-size:17px;font-weight:700;line-height:1.55;color:var(--navy)}
+  .sa{padding:15px 18px}
+  .sa + .sa{border-top:1px solid var(--sep)}
+  .sa b{display:block;font-size:13.5px;font-weight:800;color:var(--primary);margin-bottom:4px}
+  .sa p{font-size:16px;font-weight:600;line-height:1.6;color:var(--label)}
+  .more-q > summary{cursor:pointer;list-style:none}
+  .more-q > summary::-webkit-details-marker{display:none}
+  .more-q > summary::after{content:" ▾";color:var(--label3)}
+  .more-q[open] > summary::after{content:" ▴"}
+  .docs{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}
+  .docs span{padding:6px 11px;border-radius:999px;background:var(--primary-soft);color:var(--primary);font-size:14.5px;font-weight:700}
+  .mini{margin-top:8px}
+  .mini > summary{display:inline-block;cursor:pointer;list-style:none;font-size:13.5px;font-weight:700;color:var(--label3)}
+  .mini > summary::-webkit-details-marker{display:none}
+  .mini > summary::after{content:" ▾"}
+  .mini[open] > summary::after{content:" ▴"}
+  .mini p{margin-top:6px;font-size:15px;font-weight:500;line-height:1.6;color:var(--label2)}
+  .more-q-d{margin:0 4px 10px;font-size:13.5px;color:var(--label2);line-height:1.5}
   .quick b{display:block;font-size:16.5px;font-weight:800;color:var(--navy)}
   .quick .qtx span{display:block;font-size:14.5px;color:var(--label2);line-height:1.5;margin-top:2px}
 
@@ -622,6 +640,10 @@
   .d-cta{margin-top:18px}
   .d-cta .btn{margin-top:0}
   .warn-swap{margin-top:10px;font-size:12.5px;color:var(--unsure);font-weight:600}
+  /* 도움받을 곳: 이름은 한 줄로 넓게, 전화·사이트 버튼은 그 아래 가로로 */
+  .hrow{flex-direction:column;align-items:stretch;gap:10px}
+  .hrow .hb{flex-direction:row;flex-wrap:wrap;gap:8px;align-items:center}
+  .hrow .hbtn{height:36px;font-size:14px;padding:0 14px}
 </style>
 </head>
 <body>
@@ -1188,6 +1210,96 @@ const Q = [
 Q.forEach((q,i)=>{ q.id = 'q' + (i + 1); q.n = i + 1; });
 const BY_ID = Object.fromEntries(Q.map(q=>[q.id, q]));
 
+/* ---------- 간단하게: 꼭 확인할 8개 ----------
+   처음 계약하는 사람도 바로 알 수 있게, 꼭 필요한 8개 질문은 쉬운 말로 한 칸만 물어요.
+   결과는 "이렇게 물어보세요"와 "달라고 할 서류"를 먼저 보여 주고, 이유·법 조문은 '자세히'에 접어 둬요.
+   나머지 10개 질문은 목록의 '더 꼼꼼히 보기'에 그대로 있어요. */
+const one = (k, label, opts) => [{k, label, opts}];
+const pick = (map, v) => [map[v]];
+const SIMPLE = {
+  q5:{tag:'집에 걸린 빚',q:'이 집에 걸린 빚(근저당)이 있는지 확인했나요?',
+    fields:[...one('has','등기부등본을 떼어 봤나요?',[['none','봤어요 · 빚이 없어요'],['yes','봤어요 · 빚이 있어요'],['unk','아직 직접 안 봤어요']]),
+      {k:'mort',type:'money',label:'빚 금액 (채권최고액, 알면)',hint:'등기부등본 "을구"에 적힌 금액이에요. 몰라도 넘어가도 돼요.',show:f=>f.has==='yes'}],
+    judge(f){
+      if(f.has==='none') return [['ok','빚이 없는 집이에요. 잔금 보내는 날 한 번 더 확인하세요.']];
+      if(f.has==='unk') return [['unsure','아직 확인 전이에요. 인터넷등기소에서 등기부등본을 떼어 "을구"에 빚이 있는지 보세요.']];
+      const m = money(), r = [['unsure','빚이 있는 집이에요. 빚이 크면 집이 경매로 넘어갈 때 보증금을 못 돌려받을 수 있어요. 금액을 꼭 확인하고 상담받아 보세요.']];
+      if(m.mort!=null && m.price && m.deposit!=null) r.push(...recover(m));
+      return r;
+    },
+    ask:'"오늘 날짜로 뗀 등기부등본 보여 주실 수 있나요? 빚(근저당)이 있으면 잔금 날까지 갚아 주실 수 있나요?"',
+    doc:'등기부등본 (인터넷등기소에서 내가 직접 떼도 돼요, 약 700원)'},
+  q7:{tag:'보증보험 되는지',q:'보증금을 지켜 주는 보험(보증보험)에 들 수 있는 집인가요?',
+    fields:one('ins','보증기관에 알아봤나요?',[['ok','알아봤어요 · 가입돼요'],['no','알아봤어요 · 가입이 안 된대요'],['unk','아직 안 알아봤어요']]),
+    ask:'"이 집 HUG 전세보증금반환보증(보증보험) 가입되나요? 안 되면 계약금 돌려준다고 특약에 넣어 주실 수 있나요?"',
+    doc:'주소와 보증금으로 HUG(1566-9009)·안심전세앱에서 직접 조회해 보세요'},
+  q9:{tag:'주택으로 등록됐는지',q:'서류상 사람이 사는 집(주택)으로 등록된 방인가요?',
+    fields:one('use','건축물대장에 적힌 용도는?',[['house','주택이에요 (다가구·다세대 등)'],['officetel','오피스텔이에요'],['retail','주택이 아니에요 (근린생활시설 등)'],['unk','아직 안 봤어요']]),
+    ask:'"이 방 건축물대장상 용도가 주택인가요? 위반건축물로 표시된 건 없나요?"',
+    doc:'건축물대장 (정부24에서 무료로 뗄 수 있어요)'},
+  q1:{tag:'집주인 본인인지',q:'계약하러 나오는 사람이 집주인 본인인가요?',
+    fields:one('who','누가 나온대요?',[['self','집주인 본인이 나와요'],['agent','가족이나 다른 사람이 대신 와요'],['unk','아직 몰라요']]),
+    judge:f=>pick({self:['ok','집주인 본인이에요. 신분증 이름이 등기부등본 주인과 같은지만 맞춰 보세요.'],
+      agent:['unsure','대신 오는 사람이 있으면 위임장과 인감증명서 원본을 보고, 집주인과 직접 통화해 맡긴 게 맞는지 확인해야 해요.'],
+      unk:['unsure','누가 나올지 미리 물어보세요. 대신 온다면 필요한 서류를 미리 요청하세요.']}, f.who),
+    ask:'"계약하는 날 집주인분이 직접 나오시나요? 대신 오시면 위임장과 인감증명서 원본 준비해 주세요. 집주인분과 통화도 한 번 하고 싶어요."',
+    doc:'집주인 신분증 · 대신 오면 위임장 + 인감증명서 원본'},
+  q13:{tag:'입금 통장 이름',q:'보증금과 월세는 집주인 본인 이름의 통장으로 보내나요?',
+    fields:one('acct','어디로 보내래요?',[['owner','집주인 이름 통장이에요'],['other','다른 사람 이름 통장이에요 (중개사·가족 등)'],['cash','현금으로 달래요'],['unk','아직 계좌를 안 받았어요']]),
+    ask:'"보증금은 등기부등본에 있는 집주인분 이름 통장으로만 보낼게요. 계좌를 계약서에 적어 주세요."',
+    doc:'계약서에 적힌 입금 계좌 · 이체 확인증 (보낸 뒤 꼭 저장)'},
+  q10:{tag:'보증금 돌려받는 날',q:'계약이 끝나는 날 보증금을 바로 돌려받기로 했나요?',
+    fields:one('when','언제 돌려준대요?',[['endw','끝나는 날 바로 · 계약서에도 적어요'],['end','끝나는 날 준다고 말로만 했어요'],['next','다음 세입자가 들어와야 준대요'],['unk','정확히 말 안 했어요']]),
+    judge:f=>pick({endw:['ok','끝나는 날 돌려받기로 하고 계약서에도 적어요.'],
+      end:['unsure','말로 한 약속은 나중에 증명하기 어려워요. 계약서 특약에 적어 달라고 하세요.'],
+      next:['bad','"다음 세입자가 와야 준다"면 이사 나간 뒤에도 몇 달씩 못 받을 수 있어요. 끝나는 날 돌려준다고 특약에 넣어 달라고 하세요.'],
+      unk:['unsure','돌려주는 날을 정하고 계약서 특약에 적어 달라고 하세요.']}, f.when),
+    ask:'"계약 끝나는 날 보증금 전액 돌려주신다고 특약에 적어 주실 수 있나요?"',
+    doc:'계약서 특약: "계약 종료일에 보증금 전액을 반환한다"'},
+  q16:{tag:'잔금 날 등기부 다시 보기',q:'잔금 보내기 직전에 등기부등본을 다시 떼어 봤나요?',
+    fields:one('chk','다시 떼어 보니 어때요?',[['same','계약 때와 같아요'],['changed','달라진 게 있어요 (새 빚·압류·주인 바뀜 등)'],['none','아직 안 떼어 봤어요']]),
+    ask:'"잔금 보내기 전에 오늘 날짜 등기부등본 한 번 더 확인할게요."',
+    doc:'오늘 날짜 등기부등본 (인터넷등기소)'},
+  q17:{tag:'전입신고·확정일자',q:'입주하는 날 전입신고와 확정일자를 받을 건가요?',
+    fields:one('move','언제 할 거예요?',[['day','입주하는 날 바로 할 거예요'],['later','며칠 뒤에 할 거예요'],['no','집주인이 하지 말래요'],['unk','어떻게 하는지 몰라요']]),
+    judge:f=>pick({day:['ok','입주하는 날 바로 해요. 보호는 그 다음 날 0시부터 시작돼요.'],
+      later:['unsure','늦어지면 그사이 생긴 빚이 내 보증금보다 앞설 수 있어요. 입주하는 날 바로 하세요.'],
+      no:['bad','전입신고를 못 하면 보증금을 법으로 지킬 수 없어요. 막는다면 계약을 다시 생각해 보세요.'],
+      unk:['unsure','입주하는 날 주민센터나 정부24에서 전입신고하면 돼요. 전월세 신고를 하면 확정일자도 함께 받아요.']}, f.move),
+    ask:'"입주하는 날 바로 전입신고하고 확정일자 받을게요. 괜찮으시죠?"',
+    doc:'임대차계약서 원본 + 신분증 (주민센터 또는 정부24)'}
+};
+// 한 화면에 들어가게 짧은 말 (긴 설명은 '더보기'에)
+const SHORT = {
+  q5:{q:'이 집에 빚(근저당)이 있나요?', label:'등기부등본에서 확인했나요?', opts:{none:'봤어요 · 빚 없음', yes:'봤어요 · 빚 있음', unk:'아직 안 봤어요'},
+    sum:{none:'빚 없음 · 잔금 날 한 번 더 보기', yes:'빚 금액 꼭 확인하고 상담받기', unk:'등기부등본부터 떼어 보기'}, askS:'"등기부등본 보여 주세요"', docs:['등기부등본']},
+  q7:{q:'보증보험에 들 수 있는 집인가요?', label:'알아봤나요?', opts:{ok:'가입돼요', no:'가입이 안 된대요', unk:'아직 안 알아봤어요'},
+    sum:{ok:'보증보험 가입 가능', no:'위험 신호 · 계약 보류 생각하기', unk:'HUG에서 먼저 조회하기'}, askS:'"보증보험 가입되나요?"', docs:['HUG 가입 조회 결과']},
+  q9:{q:'주택으로 등록된 방인가요?', label:'건축물대장에 적힌 용도는?', opts:{house:'주택', officetel:'오피스텔', retail:'주택 아님 (근린생활시설 등)', unk:'아직 안 봤어요'},
+    sum:{house:'주거용으로 등록돼 있어요', officetel:'전입신고 되는지 확인하기', retail:'보증보험·법 보호가 어려워요', unk:'건축물대장부터 보기'}, askS:'"건축물대장상 주택인가요?"', docs:['건축물대장']},
+  q1:{q:'집주인 본인이 나오나요?', label:'누가 나온대요?', opts:{self:'집주인 본인', agent:'가족·대리인', unk:'아직 몰라요'},
+    sum:{self:'신분증 이름만 맞춰 보기', agent:'위임 서류 보고, 집주인과 통화하기', unk:'누가 나오는지 미리 묻기'}, askS:'"집주인분이 직접 나오시나요?"', docs:['집주인 신분증','위임장','인감증명서']},
+  q13:{q:'집주인 이름 통장으로 보내나요?', label:'어디로 보내래요?', opts:{owner:'집주인 이름 통장', other:'다른 사람 통장', cash:'현금으로 달래요', unk:'아직 계좌 못 받음'},
+    sum:{owner:'보낼 때 받는 사람 이름 한 번 더', other:'집주인 통장으로 바꿔 달라기', cash:'계좌 이체로 바꾸기', unk:'받는 사람 이름 꼭 확인하기'}, askS:'"집주인분 이름 통장으로 보낼게요"', docs:['계약서에 입금 계좌','이체 확인증']},
+  q10:{q:'보증금, 끝나는 날 바로 받나요?', label:'언제 돌려준대요?', opts:{endw:'바로 · 계약서에 적어요', end:'바로 · 말로만 했어요', next:'다음 세입자가 와야', unk:'정확히 몰라요'},
+    sum:{endw:'특약까지 적었어요', end:'특약에 적어 달라고 하기', next:'끝나는 날 반환 특약 요구하기', unk:'돌려받는 날 정해서 적기'}, askS:'"끝나는 날 반환, 특약에 적어 주세요"', docs:['보증금 반환 특약']},
+  q16:{q:'잔금 전에 등기부를 다시 봤나요?', label:'다시 떼어 보니?', opts:{same:'계약 때와 같아요', changed:'달라진 게 있어요', none:'아직 안 봤어요'},
+    sum:{same:'그대로예요 · 오늘 전입신고', changed:'잔금 멈추고 상담받기', none:'잔금 보내기 전에 다시 떼기'}, askS:'"잔금 전에 등기부 다시 볼게요"', docs:['오늘 날짜 등기부등본']},
+  q17:{q:'입주하는 날 전입신고 하나요?', label:'언제 할 거예요?', opts:{day:'입주하는 날 바로', later:'며칠 뒤에', no:'집주인이 하지 말래요', unk:'방법을 몰라요'},
+    sum:{day:'확정일자도 같은 날 받기', later:'입주하는 날 바로 하기', no:'계약을 다시 생각하기', unk:'주민센터·정부24에서 하기'}, askS:'"입주하는 날 전입신고 할게요"', docs:['계약서 원본','신분증']}
+};
+Object.entries(SHORT).forEach(([id, t])=>{
+  const s = SIMPLE[id], f0 = s.fields[0];
+  s.q = t.q; f0.label = t.label;
+  f0.opts = f0.opts.map(o=>[o[0], t.opts[o[0]] || o[1]]);
+  Object.assign(s, {sum:t.sum, askS:t.askS, docs:t.docs});
+});
+Object.entries(SIMPLE).forEach(([id, s])=>{
+  const q = BY_ID[id];
+  Object.assign(q, {core:true, tag:s.tag, q:s.q, fields:s.fields, ask:s.ask, doc:s.doc, sum:s.sum, askS:s.askS, docs:s.docs});
+  if(s.judge) q.judge = s.judge;
+});
+
 
 const TIPS = {
   '구두로 들음':'구두 답변은 기록이 남지 않아요. 같은 내용을 문자로 다시 받아 두세요.',
@@ -1216,7 +1328,10 @@ const na = id => id === 'q6' && ctx.bldg === 'single';
 const isDone = id => na(id) || (!!(answers[id] && answers[id].done) && ready(id));
 const naCount = (st = stage) => inStage(st).filter(q=>na(q.id)).length; // 확인한 개수에 들어간 "해당 없음" 질문 수
 const inStage = st => Q.filter(q=>q.st === st);
-const nextOpen = (skip, st = stage) => (Q.find(q=>q.st === st && q.id !== skip && !isDone(q.id)) || {}).id || null;
+// 꼭 확인할 질문끼리, 더 꼼꼼히 볼 질문끼리 이어서 보여 줘요
+const nextOpen = (skip, st = stage) => { const core = skip ? !!BY_ID[skip].core : true;
+  return (Q.find(q=>q.st === st && q.id !== skip && !!q.core === core && !isDone(q.id)) || {}).id || null; };
+const inCore = st => inStage(st).filter(q=>q.core);
 
 function judge(id){
   const r = BY_ID[id].judge(fv(id)).filter(Boolean);
@@ -1231,9 +1346,12 @@ const STAGES = [
   {id:'fin', name:'최종 확인', sub:'잔금 · 입주하는 날', desc:'잔금 전에 달라진 게 없는지 보고, 내 보증금을 지킬 절차를 마쳐요.'}
 ];
 const ST = Object.fromEntries(STAGES.map(x=>[x.id, x]));
-STAGES.forEach(x=>inStage(x.id).forEach((q,i)=>{ q.sn = i + 1; })); // 단계 안에서 몇 번째 질문인지
+STAGES.forEach(x=>{ // 단계 안에서 몇 번째 질문인지 (꼭 확인할 질문, 더 꼼꼼히 볼 질문 따로)
+  inCore(x.id).forEach((q,i)=>{ q.sn = i + 1; });
+  inStage(x.id).filter(q=>!q.core).forEach((q,i)=>{ q.sn = i + 1; });
+});
 if(!ST[stage]) stage = null;
-const stageDone = st => inStage(st).filter(q=>isDone(q.id)).length;
+const stageDone = st => inCore(st).filter(q=>isDone(q.id)).length;
 
 /* ---------- 도움받을 곳 (무료·공공, 2026년 10월 각 기관 안내 기준) ---------- */
 const HELP = {
@@ -1259,10 +1377,10 @@ const state = {sel: null};
 /* ---------- 시작: 단계 고르기 ---------- */
 function renderStart(){
   $('stages').innerHTML = STAGES.map((x,i)=>{
-    const n = stageDone(x.id), t = inStage(x.id).length, all = n === t;
+    const n = stageDone(x.id), t = inCore(x.id).length, all = n === t;
     return '<button type="button" class="stage-card' + (all ? ' all' : '') + (x.id === stage ? ' last' : '') + '" data-stage="' + x.id + '">' +
       '<span class="si" aria-hidden="true">' + (all ? '✓' : i + 1) + '</span><span><span class="st-t">' + x.name + '<span class="st-sub">' + x.sub + '</span></span>' +
-      '<span class="st-p">' + (all ? '모두 확인했어요' : n ? n + ' / ' + t + ' 확인 · 이어서 하기' : '질문 ' + t + '개') + '</span></span></button>';
+      '<span class="st-p">' + (all ? '모두 확인했어요' : n ? n + ' / ' + t + ' 확인 · 이어서 하기' : '꼭 확인할 질문 ' + t + '개') + '</span></span></button>';
   }).join('');
   renderSumEntry();
 }
@@ -1281,13 +1399,12 @@ function setStage(st){
 /* ---------- ① 질문 목록 (지금 단계만) ---------- */
 function buildList(){
   if(!stage) return;
-  const qs = inStage(stage), secs = [...new Set(qs.map(q=>q.cat))];
-  $('list').innerHTML = secs.map(s=>
-    '<div class="grp" data-sec><div class="card-t">' + s + '<small></small></div><div class="card">' +
-    qs.filter(q=>q.cat === s).map(q=>
-      '<div class="item" data-id="' + q.id + '" role="button" tabindex="0"><span class="ck"></span><div class="txt"><p class="qt"></p><p class="tg"></p></div></div>'
-    ).join('') + '</div></div>'
-  ).join('');
+  const item = q => '<div class="item" data-id="' + q.id + '" role="button" tabindex="0"><span class="ck"></span><div class="txt"><p class="qt"></p><p class="tg"></p></div></div>';
+  const core = inCore(stage), more = inStage(stage).filter(q=>!q.core);
+  $('list').innerHTML =
+    '<div class="grp" data-sec><div class="card-t">꼭 확인할 질문<small></small></div><div class="card">' + core.map(item).join('') + '</div></div>' +
+    (more.length ? '<details class="grp more-q" data-sec><summary class="card-t">더 꼼꼼히 보기 · ' + more.length + '개<small></small></summary>' +
+      '<p class="more-q-d">여유가 있거나 위 질문에서 걱정되는 게 나왔다면 함께 확인해 보세요.</p><div class="card">' + more.map(item).join('') + '</div></details>' : '');
   document.querySelectorAll('.item').forEach(el=>{
     const open = ()=>{ state.sel = el.dataset.id; renderAnswer(); go('p2'); };
     el.addEventListener('click', open);
@@ -1324,7 +1441,7 @@ function renderList(){
     const n = items.filter(i=>isDone(i.dataset.id)).length;
     c.querySelector('.card-t small').textContent = n + '/' + items.length + (n === items.length ? ' 완료' : '');
   });
-  const total = inStage(stage).length, n = stageDone(stage);
+  const total = inCore(stage).length, n = stageDone(stage);
   $('meterText').textContent = n + ' / ' + total;
   const k = naCount();
   $('meterNa').hidden = !k;
@@ -1357,7 +1474,7 @@ function renderFields(){
 function renderAnswer(){
   const q = BY_ID[state.sel], a = ans(state.sel);
   $('a-stage').textContent = ST[q.st].name;
-  $('a-num').textContent = '질문 ' + q.sn + ' / ' + inStage(q.st).length;
+  $('a-num').textContent = q.core ? '꼭 확인 ' + q.sn + ' / ' + inCore(q.st).length : '더 꼼꼼히 ' + q.sn;
   $('a-cat').textContent = q.cat + ' · ' + q.tag;
   $('a-q').textContent = q.q;
   $('a-why').textContent = q.why;
@@ -1383,6 +1500,7 @@ function renderLive(){
   btn.textContent = !ok ? '위 질문에 모두 답해 주세요' : nx ? '확인 완료 · 다음 질문' : '확인 완료 · 이 단계 마무리';
   if(!ok){ $('live').innerHTML = '<div class="card pending">답을 고르면 판단 결과가 여기에 바로 나와요.</div>'; return; }
   const j = judge(id), a = ans(id);
+  if(q.core){ $('live').innerHTML = simpleLive(q, j, a); return; }
   let h = '<div class="card-t">판단 결과</div><div class="card verdict live" data-lv="' + j.level + '"><div class="vrow"><div class="vi" aria-hidden="true"></div><div><span class="badge ' + j.level + '">' + LEVEL[j.level][0] + '</span><h3>' + HEAD[j.level] + '</h3></div></div>' +
     '<ul class="reasons">' + j.reasons.map(r=>'<li class="' + r[0] + '">' + esc(r[1]) + '</li>').join('') + '</ul></div>';
   if(j.level !== 'ok') h += '<div class="grp"><div class="card-t">' + (j.level === 'bad' ? '넘어가기 전에 상담받아 보세요' : '헷갈리면 무료로 물어보세요') + '</div><div class="card help">' + helpRows(HELP_Q[id] || ['klac','seoul']) + '</div></div>';
@@ -1391,6 +1509,23 @@ function renderLive(){
     '<div class="card risk"><span>' + esc(q.risk) + '</span><p class="tip">' + esc(TIPS[a.how]) + '</p></div>' +
     '<div class="card" style="margin-top:12px">' + q.laws.map(l=>'<div class="law"><b>' + l[0] + '</b><span>' + l[1] + '</span></div>').join('') + '</div></details>';
   $('live').innerHTML = h;
+}
+// 꼭 확인할 질문의 결과: 색깔 한 줄 + 물어볼 말 + 달라고 할 서류. 나머지는 '자세히'에 접어 둬요.
+function simpleLive(q, j, a){
+  const main = j.reasons.find(r=>r[0] === j.level) || j.reasons[0] || ['ok',''];
+  const v = fv(q.id)[q.fields[0].k], short = (q.sum && q.sum[v]) || main[1];
+  const more = (label, text) => '<details class="mini"><summary>' + label + '</summary><p>' + esc(text) + '</p></details>';
+  let h = '<div class="card-t">결과</div><div class="card verdict live" data-lv="' + j.level + '"><div class="vrow"><div class="vi" aria-hidden="true"></div><div><span class="badge ' + j.level + '">' + LEVEL[j.level][0] + '</span><p class="v-main">' + esc(short) + '</p>' +
+    (short !== main[1] ? more('더보기', main[1]) : '') + '</div></div></div>';
+  h += '<div class="grp"><div class="card"><div class="sa"><b>💬 이렇게 물어보세요</b><p>' + esc(q.askS || q.ask) + '</p>' + (q.askS ? more('전체 문장 보기', q.ask) : '') + '</div>' +
+    '<div class="sa"><b>📄 달라고 할 서류</b><div class="docs">' + (q.docs || [q.doc]).map(d=>'<span>' + esc(d) + '</span>').join('') + '</div>' + more('어디서 받나요?', q.doc) + '</div></div></div>';
+  if(j.level !== 'ok') h += '<div class="grp"><div class="card-t">' + (j.level === 'bad' ? '넘어가기 전에 무료로 상담받아 보세요' : '헷갈리면 무료로 물어보세요') + '</div><div class="card help">' + helpRows((HELP_Q[q.id] || ['klac','seoul']).slice(0, 2)) + '</div></div>';
+  h += '<details class="grp" id="lawsD"' + (lawsOpen ? ' open' : '') + '><summary class="card-t">자세히 보기 · 이유와 관련 법</summary>' +
+    (j.reasons.length > 1 ? '<div class="card"><ul class="reasons">' + j.reasons.map(r=>'<li class="' + r[0] + '">' + esc(r[1]) + '</li>').join('') + '</ul></div>' : '') +
+    '<div class="card" style="margin-top:12px">' + q.acts.map((t,i)=>'<div class="act"><span class="num">' + (i + 1) + '</span><span>' + t + '</span></div>').join('') + '</div>' +
+    '<div class="card risk" style="margin-top:12px"><span>' + esc(q.risk) + '</span><p class="tip">' + esc(TIPS[a.how]) + '</p></div>' +
+    '<div class="card" style="margin-top:12px">' + q.laws.map(l=>'<div class="law"><b>' + l[0] + '</b><span>' + l[1] + '</span></div>').join('') + '</div></details>';
+  return h;
 }
 $('live').addEventListener('toggle', e=>{ if(e.target.id === 'lawsD') lawsOpen = e.target.open; }, true);
 
