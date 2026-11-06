@@ -6,6 +6,10 @@
 <meta name="theme-color" content="#ffffff">
 <meta name="color-scheme" content="light">
 <title>집콕체크</title>
+<meta name="description" content="전월세 계약 단계마다 꼭 확인할 질문과 다음 할 일, 무료 상담받을 곳을 알려 주는 체크리스트예요. 참고용 안내이며 법률 자문이 아니에요.">
+<meta property="og:title" content="집콕체크 · 전월세 계약 체크리스트">
+<meta property="og:description" content="계약 단계마다 물어볼 질문과 다음 할 일을 알려 줘요. 신촌 대학생 시범 서비스.">
+<meta property="og:type" content="website">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <style>
   :root{
@@ -247,6 +251,18 @@
   .quick:active{background:var(--press)}
   .quick .qi{flex:none;width:44px;height:44px;border-radius:14px;display:grid;place-items:center;font-size:21px;background:var(--primary-soft)}
   .quick.help-entry .qi{background:var(--accent-soft)}
+  .quick.sum-entry .qi{background:var(--ok-bg)}
+  .sum-cnt{display:flex;gap:8px;margin:4px 0 14px}
+  .sum-cnt span{flex:1;text-align:center;border-radius:14px;padding:12px 4px;font-size:14px;font-weight:700}
+  .sum-cnt b{display:block;font-size:22px;font-weight:800}
+  .sum-cnt .bad{color:var(--bad);background:var(--bad-bg)} .sum-cnt .unsure{color:var(--unsure);background:var(--unsure-bg)} .sum-cnt .ok{color:var(--ok);background:var(--ok-bg)}
+  .sum-row{display:block;width:100%;text-align:left;border:0;background:none;padding:14px 18px;cursor:pointer;font:inherit;color:var(--label)}
+  .sum-row + .sum-row{border-top:1px solid var(--sep)}
+  .sum-row .sr-h{display:flex;align-items:center;gap:8px;font-weight:800;font-size:15.5px}
+  .sum-row .sr-p{margin-top:4px;font-size:14.5px;line-height:1.55;color:var(--label2)}
+  .sum-row .badge{font-size:12.5px;padding:2px 9px}
+  .sum-acts{display:grid;gap:10px;margin-top:18px}
+  .btn.sub{background:var(--primary-soft);color:var(--primary)}
   .quick b{display:block;font-size:16.5px;font-weight:800;color:var(--navy)}
   .quick .qtx span{display:block;font-size:14.5px;color:var(--label2);line-height:1.5;margin-top:2px}
 
@@ -647,7 +663,9 @@
           <div class="grp">
             <button type="button" class="card quick" data-quick><span class="qi" aria-hidden="true">🎤</span><span class="qtx"><b>들은 말로 빠르게 채우기</b><span>말하거나 붙여 넣으면 답을 채워 줘요</span></span></button>
             <button type="button" class="card quick help-entry" data-help><span class="qi" aria-hidden="true">☎</span><span class="qtx"><b>무료 상담받을 곳</b><span>법률구조공단 132 등</span></span></button>
+            <button type="button" class="card quick sum-entry" data-summary id="sumEntry" hidden><span class="qi" aria-hidden="true">📋</span><span class="qtx"><b>내 결과 모아 보기</b><span id="sumSub">확인이 필요한 질문만 모아 봐요</span></span></button>
           </div>
+          <p class="note fb-note" id="fbNote" hidden>시범 운영 중이에요. <a id="fbLink" target="_blank" rel="noopener">써 보고 의견 남기기</a></p>
           <details class="grp">
             <summary class="card-t">집콕체크 소개</summary>
             <div class="card intro">
@@ -1225,6 +1243,7 @@ function renderStart(){
       '<span class="si" aria-hidden="true">' + (all ? '✓' : i + 1) + '</span><span><span class="st-t">' + x.name + '<span class="st-sub">' + x.sub + '</span></span>' +
       '<span class="st-p">' + (all ? '모두 확인했어요' : n ? n + ' / ' + t + ' 확인 · 이어서 하기' : '질문 ' + t + '개') + '</span></span></button>';
   }).join('');
+  renderSumEntry();
 }
 $('stages').addEventListener('click', e=>{
   const b = e.target.closest('[data-stage]'); if(!b) return;
@@ -1659,7 +1678,80 @@ document.addEventListener('click', e=>{
   else if(t.closest('#qApply')) applyQuick();
   else if(t.closest('#lstUse')) useListing(t.closest('#lstUse').dataset.id);
   else if(t.closest('[data-mic]')) toggleMic(t.closest('[data-mic]'));
+  else if(t.closest('[data-summary]')) openSummary();
+  else if(t.closest('[data-goq]')) goQuestion(t.closest('[data-goq]').dataset.goq);
+  else if(t.closest('#sumCopy')) copySummary();
 });
+
+/* ---------- 내 결과 모아 보기 (상담받을 때 보여 주기) ---------- */
+// 시범 운영 의견 설문 주소. 비워 두면 의견 링크가 보이지 않아요.
+const FEEDBACK_URL = '';
+if(FEEDBACK_URL){ $('fbLink').href = FEEDBACK_URL; $('fbNote').hidden = false; }
+
+const doneQs = () => Q.filter(q=>isDone(q.id) && !na(q.id));
+function renderSumEntry(){
+  const d = doneQs();
+  $('sumEntry').hidden = !d.length;
+  if(!d.length) return;
+  const c = {bad:0, unsure:0};
+  d.forEach(q=>{ const l = judge(q.id).level; if(c[l] != null) c[l]++; });
+  $('sumSub').textContent = '답한 질문 ' + d.length + '개 · 위험 ' + c.bad + ' · 확인 필요 ' + c.unsure;
+}
+function summaryData(){
+  return STAGES.map(S=>({S, items: inStage(S.id).filter(q=>isDone(q.id) && !na(q.id)).map(q=>({q, j: judge(q.id)}))})).filter(x=>x.items.length);
+}
+function openSummary(){
+  const data = summaryData(), all = data.flatMap(x=>x.items);
+  const n = lv => all.filter(x=>x.j.level === lv).length;
+  let h = '<p class="sh-d">답한 질문 ' + all.length + '개를 모았어요. 위험·확인 필요 항목을 먼저 보여 줘요.</p>' +
+    '<div class="sum-cnt"><span class="bad"><b>' + n('bad') + '</b>위험</span><span class="unsure"><b>' + n('unsure') + '</b>확인 필요</span><span class="ok"><b>' + n('ok') + '</b>괜찮음</span></div>';
+  data.forEach(({S, items})=>{
+    items.sort((a,b)=>RANK[b.j.level] - RANK[a.j.level]);
+    h += '<p class="sec-t">' + S.name + '<small>' + S.sub + '</small></p><div class="card">' + items.map(({q, j})=>{
+      const r = j.reasons.find(x=>x[0] === j.level) || j.reasons[0];
+      return '<button type="button" class="sum-row" data-goq="' + q.id + '"><span class="sr-h"><span class="badge ' + j.level + '">' + LEVEL[j.level][1] + '</span>' + esc(q.tag) + '</span>' +
+        (j.level !== 'ok' && r ? '<p class="sr-p">' + esc(r[1]) + '</p>' : '') + '</button>';
+    }).join('') + '</div>';
+  });
+  h += '<div class="sum-acts"><button type="button" class="btn" id="sumCopy">상담할 때 보여 줄 요약 복사</button>' +
+    '<button type="button" class="btn sub" data-help>무료 상담받을 곳 보기</button></div>' +
+    '<p class="note">복사한 요약을 상담 기관에 보여 주면 상황을 빠르게 설명할 수 있어요. 이름·주소 같은 개인정보는 들어가지 않아요. 판단 결과는 참고용이며 법률 자문이 아니에요.</p>' +
+    (FEEDBACK_URL ? '<p class="note"><a href="' + esc(FEEDBACK_URL) + '" target="_blank" rel="noopener">시범 서비스 의견 남기기</a></p>' : '');
+  openSheet('내 결과 모아 보기', h, 'summary');
+}
+function summaryText(){
+  const lines = ['[집콕체크 계약 확인 요약] ' + new Date().toLocaleDateString('ko-KR')];
+  if(ctx.deposit != null || ctx.rent != null) lines.push('조건: 보증금 ' + (ctx.deposit != null ? won(ctx.deposit) : '-') + ' / 월세 ' + (ctx.rent != null ? won(ctx.rent) : '-'));
+  summaryData().forEach(({S, items})=>{
+    lines.push('', '■ ' + S.name);
+    items.forEach(({q, j})=>{
+      lines.push('- [' + LEVEL[j.level][1] + '] ' + q.tag);
+      if(j.level !== 'ok') j.reasons.filter(r=>r[0] === 'bad' || r[0] === 'unsure').forEach(r=>lines.push('   · ' + r[1]));
+      const m = answers[q.id] && answers[q.id].memo && answers[q.id].memo.trim();
+      if(m) lines.push('   메모: ' + m);
+    });
+  });
+  lines.push('', '※ 집콕체크의 판단은 참고용이며 법률 자문이 아니에요.');
+  return lines.join('\n');
+}
+async function copySummary(){
+  const t = summaryText();
+  try { await navigator.clipboard.writeText(t); toast('요약을 복사했어요. 상담할 때 붙여 넣어 보여 주세요.'); }
+  catch(e){
+    const ta = document.createElement('textarea'); ta.value = t; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    let ok = false; try { ok = document.execCommand('copy'); } catch(_) {}
+    ta.remove();
+    toast(ok ? '요약을 복사했어요.' : '복사하지 못했어요. 화면을 캡처해 보여 주세요.');
+  }
+}
+function goQuestion(id){
+  closeSheet();
+  setStage(BY_ID[id].st);
+  state.sel = id;
+  renderAnswer();
+  go('p2');
+}
 document.addEventListener('keydown', e=>{ if(e.key === 'Escape' && !$('sheet').hidden) closeSheet(); });
 
 /* ---------- 음성 입력 (브라우저 음성 인식, 한국어) ---------- */
